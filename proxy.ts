@@ -2,6 +2,7 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 const isAuthRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+const isPublicRoute = createRouteMatcher(["/api/uploadthing(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
@@ -10,7 +11,7 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  if (!isAuthRoute(req)) {
+  if (!isAuthRoute(req) && !isPublicRoute(req)) {
     await auth.protect();
   }
 });

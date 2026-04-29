@@ -14,8 +14,8 @@ Le dépôt GitHub d'Antonio ayant été supprimé, il n'y a pas de repo de réf�
 | **Framework** | Next.js 16 (App Router) | Déjà installé |
 | **Langage** | TypeScript 5 | Déjà installé |
 | **Styling** | Tailwind CSS v4 | Déjà installé |
-| **Auth** | Clerk (dernière version) | À installer |
-| **ORM** | Prisma v6 | À installer |
+| **Auth** | Clerk v7+ | Installé et intégré |
+| **ORM** | Prisma v7 | Installé et intégré |
 | **Base de données** | Neon (PostgreSQL) | Remplace PlanetScale (MySQL) du tuto |
 | **Upload fichiers** | Uploadthing v7+ | API très différente du tuto (v4) |
 | **UI Components** | shadcn/ui (dernière CLI) | `npx shadcn@latest` |
@@ -61,10 +61,27 @@ Daily.co expose WebRTC sous une API simple sans la complexité.
 | Librairie | Version tuto (2023) | Version 2026 | Changement majeur |
 |---|---|---|---|
 | Clerk | v4 | v6+ | Composants et hooks renommés |
-| Prisma | v4 | v6 | Syntaxe client modifiée |
+| Prisma | v4 | v7 | `url` retiré de `schema.prisma`, config via `prisma.config.ts` |
 | Uploadthing | v4 | v7+ | Composants entièrement refaits |
 | shadcn/ui | ancienne CLI | nouvelle CLI | Commande d'install différente |
 | Next.js | 13 | 16 | App Router, Server Actions évoluées |
+
+---
+
+## État actuel du projet (avril 2026)
+
+- Auth Clerk en place (sign-in/sign-up + route setup).
+- Prisma généré et première migration exécutée sur Neon.
+- Client Prisma branché via `@prisma/adapter-neon`.
+- Base de tests installée avec Vitest + premiers tests sur `initialProfile`.
+
+### Règles Prisma 7 + Neon validées
+
+- Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.
+- Définir l'URL de migration dans `prisma.config.ts`.
+- Utiliser `DIRECT_URL` pour Prisma Migrate (`prisma migrate dev`).
+- Utiliser `DATABASE_URL` (pooler Neon) pour le runtime applicatif.
+- Sur Neon/PostgreSQL, privilégier les clés étrangères natives (pas `relationMode = "prisma"` sauf besoin spécifique).
 
 ---
 

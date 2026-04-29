@@ -48,6 +48,9 @@ next-env.d.ts
 
 # test/e2e artifacts
 /test-results/
+
+# temporary files
+/tmp/
 /playwright-report/
 
 # build tool caches

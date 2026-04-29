@@ -9,8 +9,10 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    environmentMatchGlobs: [["**/*.ui.test.tsx", "jsdom"]],
     globals: true,
-    include: ["**/*.test.ts"],
+    include: ["**/*.test.ts", "**/*.test.tsx"],
+    setupFiles: ["./vitest.setup.ts"],
     clearMocks: true,
   },
 });

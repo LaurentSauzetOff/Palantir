@@ -1,13 +1,29 @@
 import { getCurrentProfile } from "@/lib/current-profile";
 import { v4 as uuidv4 } from "uuid";
+import * as z from "zod";
 
 import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { MemberRole } from "@/lib/generated/prisma/enums";
 
+const createServerSchema = z.object({
+  name: z.string().trim().min(1).max(64),
+  imageUrl: z.url(),
+});
+
 export async function POST(req: Request) {
   try {
-    const { name, imageUrl } = await req.json();
+    const body = await req.json();
+    const parsed = createServerSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid request payload" },
+        { status: 400 },
+      );
+    }
+
+    const { name, imageUrl } = parsed.data;
     const profile = await getCurrentProfile();
 
     if (!profile) {

@@ -30,7 +30,7 @@ export default function RootLayout({
           enableSystem
           storageKey="discord-theme"
         >
-          <ClerkProvider>{children}</ClerkProvider>
+          <ClerkProvider afterSignOutUrl="/">{children}</ClerkProvider>
         </ThemeProvider>
       </body>
     </html>

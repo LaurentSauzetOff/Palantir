@@ -75,6 +75,35 @@ Daily.co expose WebRTC sous une API simple sans la complexité.
 - Client Prisma branché via `@prisma/adapter-neon`.
 - Base de tests installée avec Vitest + premiers tests sur `initialProfile`.
 
+### Mise à jour branche `feat/server-creation-api` (30 avril 2026)
+
+- Création de la route API `POST /api/servers` dans `app/api/servers/route.ts`.
+- Ajout de `lib/current-profile.ts` pour récupérer le profil courant côté serveur.
+- Ajout du composant `components/modals/initial-modal.tsx` et intégration dans `app/(setup)/page.tsx`.
+- Correction du chemin d'import modal : `models` -> `modals`.
+- Correction Prisma sur création de serveur : champ `imageURL` (et non `imageUrl`) pour le modèle `Server`.
+
+### Correctifs stabilité/qualité appliqués
+
+- Correction TypeScript/Clerk : usage serveur `auth` via `@clerk/nextjs/server` dans `lib/current-profile.ts`.
+- Correction config Vitest : suppression de `environmentMatchGlobs` (non supporté par les types utilisés ici).
+- Ajout des types de tests dans `tsconfig.json` : `vitest/globals` et `@testing-library/jest-dom`.
+- Nettoyage de `vitest.setup.ts` : suppression d'une directive `@ts-expect-error` inutile.
+
+### Validation de la branche (statut au 30 avril 2026)
+
+- `npm run lint` : OK
+- `npx tsc --noEmit` : OK
+- `npm run build` : OK
+- `npm run test:unit` : OK
+- `npm run test:e2e` : OK
+
+### Dette technique restante (non bloquante)
+
+- Harmoniser le nommage `imageURL` vs `imageUrl` dans le schéma Prisma (migration future).
+- Ajouter une validation serveur Zod dans `POST /api/servers` (validation aujourd'hui seulement côté client).
+- Remplacer le double rafraîchissement client (`router.refresh()` + `window.location.reload()`) par une navigation ciblée après création.
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

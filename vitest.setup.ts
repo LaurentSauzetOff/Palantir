@@ -23,6 +23,5 @@ if (typeof window !== "undefined" && !window.ResizeObserver) {
     disconnect() {}
   }
 
-  // @ts-expect-error polyfill for test environment
   window.ResizeObserver = ResizeObserver;
 }

@@ -2,6 +2,7 @@
 
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import axios from "axios";
 
 import { useForm } from "react-hook-form";
 
@@ -27,6 +28,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "../ui/button";
 import { useSyncExternalStore } from "react";
 import { FileUpload } from "../file-upload";
+import { useRouter } from "next/navigation";
 
 const formSchema = z.object({
   name: z.string().min(1, {
@@ -53,8 +55,18 @@ export const InitialModal = () => {
 
   const isLoading = form.formState.isSubmitting;
 
+  const router = useRouter();
+
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    console.log(values);
+    try {
+      await axios.post("/api/servers", values);
+
+      form.reset();
+      router.refresh();
+      window.location.reload();
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   if (!isMounted) return null;
@@ -111,7 +123,7 @@ export const InitialModal = () => {
                 )}
               />
             </div>
-            <DialogFooter className="bg-gray-100px-6 py-4">
+            <DialogFooter className="bg-gray-100 px-6 py-4">
               <Button disabled={isLoading} variant="primary">
                 create 
               </Button>

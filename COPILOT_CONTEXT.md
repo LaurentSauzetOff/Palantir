@@ -149,3 +149,6 @@ Une fois le tutoriel terminé dans son intégralité, une **phase d'optimisation
 
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.
+
+### Engagement fin de tutoriel
+À la fin du tutoriel, une **phase de tests complète** sera systématiquement menée (unitaires, intégration, e2e, accessibilité et non-régression) avant passage en branche suivante.

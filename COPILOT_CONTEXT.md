@@ -121,3 +121,31 @@ Au début de chaque session Copilot Chat dans VSCode, référence ce fichier :
 #file:COPILOT_CONTEXT.md
 ```
 Cela permet à Copilot d'avoir immédiatement tout le contexte du projet sans avoir à tout réexpliquer.
+
+---
+
+## Phase d'optimisation (post-tuto)
+
+Une fois le tutoriel terminé dans son intégralité, une **phase d'optimisation complète** sera menée. Elle couvrira notamment :
+
+### Performance & architecture
+- Éliminer les doubles requêtes DB (ex: layout + sidebar interrogent chacun le serveur)
+- Mutualiser les fetch avec React cache ou des fonctions utilitaires partagées
+- Auditer et réduire les waterfalls de requêtes dans les layouts imbriqués
+
+### Qualité du code
+- Harmoniser le nommage `imageURL` vs `imageUrl` dans le schéma Prisma (migration)
+- Ajouter la validation serveur Zod sur toutes les routes API (POST /api/servers et suivantes)
+- Remplacer les rafraîchissements bruts (`router.refresh()` + `window.location.reload()`) par une navigation ciblée
+- Supprimer les variables calculées mais non consommées (textChannels, audioChannels, etc. dans server-sidebar, le temps du tuto)
+
+### Tests
+- Augmenter la couverture de tests unitaires sur les composants critiques
+- Ajouter des tests e2e sur les flows principaux (création serveur, navigation, messages)
+
+### Sécurité
+- Audit OWASP des routes API (validation input, autorisation, rate limiting)
+- Vérifier l'exposition des données Prisma retournées au client
+
+### Dette technique cumulée pendant le tuto
+Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.

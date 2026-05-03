@@ -208,16 +208,31 @@ Une fois le tutoriel terminé dans son intégralité, une **phase d'optimisation
 ### Qualité du code
 - Harmoniser le nommage `imageURL` vs `imageUrl` dans le schéma Prisma (migration)
 - Ajouter la validation serveur Zod sur toutes les routes API (POST /api/servers et suivantes)
+- Ajouter une validation stricte de `role` sur les routes `PATCH /api/members/[memberId]` (enum Prisma + réponse 400 propre au lieu d'un 500)
 - Remplacer les rafraîchissements bruts (`router.refresh()` + `window.location.reload()`) par une navigation ciblée
+- Réduire les refresh redondants dans la modal de gestion des membres (`router.refresh()` + réinjection de `response.data` dans le store)
+- Remplacer les `console.log(error)` côté client par un vrai feedback utilisateur (toast, message inline, état d'erreur)
+- Supprimer les castings non sûrs du store modal (`data as { server: ... }`) en passant à un typage discriminé par type de modal
 - Supprimer les variables calculées mais non consommées (textChannels, audioChannels, etc. dans server-sidebar, le temps du tuto)
+
+### UI / UX
+- Améliorer l'accessibilité des actions icon-only (ex: trigger `MoreVertical` dans la modal members) : vrai bouton, `aria-label`, focus visible, hit-area plus généreuse
+- Stabiliser les états de chargement dans la modal members : éviter la disparition brutale des actions, préférer une désactivation locale avec feedback visuel en place
+- Ajouter un `AvatarFallback` robuste dans `UserAvatar` (initiales / fallback visuel si image cassée ou absente)
+- Uniformiser la langue de l'interface d'administration serveur (éviter le mélange anglais/français dans la même surface)
+- Ajouter un vrai feedback utilisateur sur les erreurs d'actions de modération (kick, changement de rôle) au lieu d'un simple log console
+- Améliorer la découvrabilité et l'ergonomie des actions contextuelles dans la modal members (menu d'actions plus explicite, cible de clic plus confortable)
+- Vérifier les flows de mutation de la modal members directement dans le navigateur en phase post-tuto pour valider la perception UX réelle, pas seulement la structure du code
 
 ### Tests
 - Augmenter la couverture de tests unitaires sur les composants critiques
 - Ajouter des tests e2e sur les flows principaux (création serveur, navigation, messages)
+- Ajouter des tests ciblés sur la gestion des membres : changement de rôle invalide, kick du owner refusé, membre introuvable, retour d'erreur utilisateur
 
 ### Sécurité
 - Audit OWASP des routes API (validation input, autorisation, rate limiting)
 - Vérifier l'exposition des données Prisma retournées au client
+- Revoir les codes de retour des routes `members/[memberId]` : éviter les faux 200 silencieux et les 500 sur erreurs métier attendues (404/403/400 explicites)
 
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.

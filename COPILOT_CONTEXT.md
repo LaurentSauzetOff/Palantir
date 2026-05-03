@@ -237,5 +237,35 @@ Une fois le tutoriel terminé dans son intégralité, une **phase d'optimisation
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.
 
+#### `app/api/channels/route.ts` — handlers `DELETE` et `PATCH` mal placés
+
+`app/api/channels/route.ts` contient actuellement des handlers `DELETE` et `PATCH` qui déclarent un paramètre `params: Promise<{ channelId: string }>`, mais ce fichier est une route statique (aucun segment dynamique dans le chemin). Next.js ne peut jamais injecter `channelId` ici, et TypeScript le signale (erreur `TS2344` au niveau du validateur `.next/dev/types/validator.ts`).
+
+**Fix à appliquer post-tuto :**
+1. Créer `app/api/channels/[channelId]/route.ts` et y déplacer `DELETE` + `PATCH`.
+2. Ajouter le check `profile` manquant dans ces deux handlers (ils ne l'avaient pas dans l'original).
+3. Conserver `POST` dans `app/api/channels/route.ts` (route statique — `serverId` est passé en query param, pas dans le path).
+
+#### `app/api/channels/route.ts` — `POST` sans validation Zod sur `type`
+
+`const { name, type } = await req.json()` — le champ `type` est injecté directement dans Prisma sans validation. Si la valeur n'est pas un `ChannelType` valide, Prisma lève une erreur → 500 brut. Il faut valider via `z.enum(channelTypeValues)` avant d'écrire en base.
+
+#### `app/api/channels/[channelId]/route.ts` (futur fichier) — `DELETE` et `PATCH` sans auth
+
+Une fois déplacés dans le bon fichier, `DELETE` et `PATCH` devront inclure :
+- `getCurrentProfile()` + guard 401
+- Vérification que le profil est ADMIN ou MODERATOR sur le serveur auquel appartient le canal (actuellement absent — n'importe qui pourrait supprimer ou renommer un canal).
+
+#### `components/modals/create-channel-modal.tsx` — label de log incorrect
+
+```ts
+console.error("[CREATE_SERVER_MODAL]", error); // copy-paste depuis create-server-modal
+```
+À corriger en `[CREATE_CHANNEL_MODAL]`.
+
+#### `components/modals/create-channel-modal.tsx` — `<FormControl>` dupliqué dans le `<Select>`
+
+Le champ `type` contient deux `<FormControl>` imbriqués : un autour du `<Select>` et un autour du `<SelectTrigger>`. shadcn/ui n'en attend qu'un seul par `<FormField>`. Supprimer le `<FormControl>` interne (celui autour de `<SelectTrigger>`).
+
 ### Engagement fin de tutoriel
 À la fin du tutoriel, une **phase de tests complète** sera systématiquement menée (unitaires, intégration, e2e, accessibilité et non-régression) avant passage en branche suivante.

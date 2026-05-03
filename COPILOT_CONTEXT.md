@@ -138,6 +138,37 @@ E2E_CLERK_EMAIL=<email-compte-test>
 E2E_CLERK_PASSWORD=<mot-de-passe-compte-test>
 ```
 
+#### Audit de sécurité (3 mai 2026)
+
+##### Contexte Next.js 16 — `proxy.ts` (pas `middleware.ts`)
+
+Dans cette version de Next.js, la convention de fichier middleware a été renommée : `middleware.ts` est déprécié, le fichier s'appelle désormais `proxy.ts`. C'est documenté dans `node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/proxy.md`.
+
+##### Problèmes identifiés et corrigés
+
+- **`invite-code/route.ts` exposait l'objet server complet** : La réponse retournait `NextResponse.json(server)` au lieu de `NextResponse.json({ inviteCode: server.inviteCode })`. Corrigé — seul le champ nécessaire est retourné.
+- **`messageFile` upload sans limites** : `f(["image", "pdf", "text"])` sans `maxFileSize` ni `maxFileCount` laissait la possibilité d'uploader des fichiers arbitrairement grands. Corrigé — limites ajoutées : image 4 MB, PDF 16 MB, texte 1 MB.
+
+##### Dépendances vulnérables (non bloquant, à traiter post-tuto)
+
+| Package | Sévérité | Advisory | Action |
+|---|---|---|---|
+| `effect` (via `uploadthing`) | **High** | GHSA-38f7-945m-qr2g — `AsyncLocalStorage` context leak | Fix = downgrade `uploadthing@6.12.0` (breaking change) |
+| `postcss` (via `next`) | Moderate | GHSA-qx2v-qp2m-jg93 — XSS via `</style>` | Pas de fix sans downgrade Next.js |
+
+##### Points validés sans action requise
+
+- `proxy.ts` actif avec `auth.protect()` global (toutes routes protégées par Clerk au niveau middleware)
+- Auth Clerk présente sur chaque route API via `getCurrentProfile()`
+- Upload Uploadthing protégé par `handleAuth()` (throw si non authentifié)
+- `inviteCode` généré par UUID v4 (non prédictible)
+- Accès serveur filtré sur `members.some.profileId` (non-membres redirigés)
+- `.env` absent du dépôt (couvert par `.env*` dans `.gitignore`)
+- `e2e/.auth/` ignoré par git (cookies de session non versionnés)
+- Pas d'injection SQL possible (toutes les requêtes passent par Prisma ORM)
+- `imageUrl` validée comme URL via Zod avant écriture en base
+- `remotePatterns` Next.js restreints à `uploadthing.com` et `ufs.sh`
+
 #### Validation au 3 mai 2026
 
 - `npm run lint` : OK

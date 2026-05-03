@@ -49,6 +49,7 @@ next-env.d.ts
 
 # test/e2e artifacts
 /test-results/
+/e2e/.auth/
 
 # temporary files
 /tmp/

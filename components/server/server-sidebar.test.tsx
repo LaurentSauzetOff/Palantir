@@ -32,7 +32,8 @@ vi.mock("@/lib/generated/prisma/client", () => ({
 }));
 
 vi.mock("@/components/server/server-header", () => ({
-  ServerHeader: (props: unknown) => React.createElement("mock-server-header", props),
+  ServerHeader: (props: Record<string, unknown>) =>
+    React.createElement("mock-server-header", props),
 }));
 
 import { MemberRole } from "@/lib/generated/prisma/enums";
@@ -60,7 +61,14 @@ describe("ServerSidebar", () => {
     const result = await ServerSidebar({ serverId: "server-1" });
 
     expect(mocks.findUniqueMock).toHaveBeenCalledWith({
-      where: { id: "server-1" },
+      where: {
+        id: "server-1",
+        members: {
+          some: {
+            profileId: "profile-1",
+          },
+        },
+      },
       include: {
         channels: { orderBy: { createdAt: "asc" } },
         members: {
@@ -94,13 +102,42 @@ describe("ServerSidebar", () => {
       ],
     });
 
-    const tree = (await ServerSidebar({ serverId: "server-1" })) as React.ReactElement;
+    const tree = (await ServerSidebar({
+      serverId: "server-1",
+    })) as React.ReactElement<{ children: React.ReactElement<Record<string, unknown>> }>;
 
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(tree.type).toBe("div");
 
-    const child = tree.props.children as React.ReactElement;
+    const child = tree.props.children;
     expect(child.props.role).toBe(MemberRole.MODERATOR);
-    expect(child.props.server.name).toBe("Palantir");
+    expect((child.props.server as { name: string }).name).toBe("Palantir");
+  });
+
+  it("redirige vers / quand le profil n'est pas membre du serveur", async () => {
+    mocks.getCurrentProfileMock.mockResolvedValue({ id: "profile-outside" });
+    mocks.findUniqueMock.mockResolvedValue(null);
+
+    const result = await ServerSidebar({ serverId: "server-1" });
+
+    expect(mocks.findUniqueMock).toHaveBeenCalledWith({
+      where: {
+        id: "server-1",
+        members: {
+          some: {
+            profileId: "profile-outside",
+          },
+        },
+      },
+      include: {
+        channels: { orderBy: { createdAt: "asc" } },
+        members: {
+          include: { profile: true },
+          orderBy: { role: "asc" },
+        },
+      },
+    });
+    expect(mocks.redirectMock).toHaveBeenCalledWith("/");
+    expect(result).toEqual({ redirectedTo: "/" });
   });
 });

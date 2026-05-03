@@ -104,6 +104,47 @@ Daily.co expose WebRTC sous une API simple sans la complexité.
 - Ajouter une validation serveur Zod dans `POST /api/servers` (validation aujourd'hui seulement côté client).
 - Remplacer le double rafraîchissement client (`router.refresh()` + `window.location.reload()`) par une navigation ciblée après création.
 
+---
+
+### Mise à jour branche `feat/invitations` (3 mai 2026)
+
+- Implémentation de la page d'invitation `app/(invite)/(routes)/invite/[inviteCode]/page.tsx`.
+- Correction TypeScript Next.js 16 : `params` est une `Promise<>`, accès via `await params` (non pas `params.inviteCode` directement).
+
+#### Audit et durcissement des rôles
+
+- **Permissions GUEST validées** : Le composant `ServerHeader` affiche uniquement "Leave Server" pour un GUEST. Les actions modérateur (Invite People, Create Channel) et admin (Server settings, Manage members, Delete Server) sont masquées.
+- **Contrôle d'accès serveur renforcé** : `ServerSidebar` utilise maintenant `findUnique.where.members.some.profileId` pour exiger que le profil courant soit membre du serveur avant d'afficher la sidebar. Tout non-membre est redirigé vers `/`.
+- **Variables non utilisées supprimées** : `textChannels`, `audioChannels`, `videoChannels`, `members` retirés de `server-sidebar.tsx` (nettoyage lint).
+
+#### Corrections qualité
+
+- **`hooks/use-origin.ts`** : Réécriture avec `useSyncExternalStore` pour éviter l'erreur ESLint `react-hooks/set-state-in-effect` (setState synchrone dans useEffect).
+- **`prisma.config.ts`** : Remplacement de `env["DATABASE_URL"]` par `process.env.DATABASE_URL!` (erreur TypeScript sur la fonction `env` strictement typée de Prisma).
+
+#### Infrastructure de tests e2e authentifiés (en cours)
+
+- Ajout d'un projet Playwright `setup` avec `storageState` (`e2e/.auth/user.json`) partagé entre les tests Chromium.
+- `e2e/auth.setup.ts` : login automatique Clerk en deux étapes (email → code OTP via `424242` en dev mode).
+- `e2e/server-sidebar.spec.ts` : assertions de rôle GUEST/MODERATOR/ADMIN conditionnées aux variables `E2E_CLERK_EMAIL`, `E2E_CLERK_PASSWORD`, `E2E_AUTHENTICATED_SERVER_PATH`, `E2E_EXPECTED_ROLE`.
+- **Limitation connue** : Le bypass `424242` de Clerk ne fonctionne pas avec les comptes Google OAuth — uniquement avec des comptes email/password natifs Clerk. À résoudre via un compte de test dédié ou l'API Clerk backend.
+
+#### Variables `.env` ajoutées pour les tests e2e
+
+```
+E2E_AUTHENTICATED_SERVER_PATH=/servers/<server-id>
+E2E_EXPECTED_ROLE=GUEST
+E2E_CLERK_EMAIL=<email-compte-test>
+E2E_CLERK_PASSWORD=<mot-de-passe-compte-test>
+```
+
+#### Validation au 3 mai 2026
+
+- `npm run lint` : OK
+- `npx tsc --noEmit` : OK
+- `npm run test:unit` : OK (18/18)
+- `npm run test:e2e` : OK (3 passés, 2 skipped — le scénario GUEST authentifié est en attente d'un compte test natif Clerk)
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

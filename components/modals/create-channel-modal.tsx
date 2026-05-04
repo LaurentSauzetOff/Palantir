@@ -37,6 +37,7 @@ import { Button } from "../ui/button";
 import { useParams, useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal-store";
 import { ChannelType } from "@/lib/generated/prisma/enums";
+import { useEffect } from "react";
 
 const channelTypeValues = [
   ChannelType.TEXT,
@@ -57,17 +58,26 @@ const formSchema = z.object({
 });
 
 export const CreateChannelModal = () => {
-  const { isOpen, onClose, type } = useModal();
+  const { isOpen, onClose, type, data } = useModal();
 
   const isModalOpen = isOpen && type === "createChannel";
+  const { channelType } = data || {};
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      type: ChannelType.TEXT,
+      type: channelType || ChannelType.TEXT,
     },
   });
+
+  useEffect(() => {
+    if (channelType) {
+      form.setValue("type", channelType);
+    } else {
+      form.setValue("type", ChannelType.TEXT);
+    }
+  }, [channelType, form]);
 
   const isLoading = form.formState.isSubmitting;
 
@@ -94,7 +104,7 @@ export const CreateChannelModal = () => {
       router.refresh();
       onClose();
     } catch (error) {
-      console.error("[CREATE_SERVER_MODAL]", error);
+      console.error("[CREATE_CHANNEL_MODAL]", error);
     }
   };
 
@@ -151,11 +161,9 @@ export const CreateChannelModal = () => {
                         onValueChange={field.onChange}
                         defaultValue={field.value}
                       >
-                        <FormControl>
-                          <SelectTrigger className="bg-zinc-300/50 border-0 focus:ring-0 text-black ring-offset-0 focus:ring-offset-0 capitalize outline-none">
-                            <SelectValue placeholder="Select channel type" />
-                          </SelectTrigger>
-                        </FormControl>
+                        <SelectTrigger className="bg-zinc-300/50 border-0 focus:ring-0 text-black ring-offset-0 focus:ring-offset-0 capitalize outline-none">
+                          <SelectValue placeholder="Select channel type" />
+                        </SelectTrigger>
                         <SelectContent>
                           {Object.values(ChannelType).map((type) => (
                             <SelectItem

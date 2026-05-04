@@ -176,6 +176,57 @@ Dans cette version de Next.js, la convention de fichier middleware a été renom
 - `npm run test:unit` : OK (18/18)
 - `npm run test:e2e` : OK (3 passés, 2 skipped — le scénario GUEST authentifié est en attente d'un compte test natif Clerk)
 
+### Mise à jour branche `feat/server-channels-sidebar` (4 mai 2026)
+
+#### Nouveaux composants créés
+
+- **`components/server/server-channel.tsx`** : Item de canal dans la sidebar. Bouton de navigation, icône selon `ChannelType`, boutons Edit/Delete visibles au hover pour ADMIN/MODERATOR.
+- **`components/server/server-member.tsx`** : Item de membre dans la sidebar. Avatar, icône de rôle, navigation vers `/conversations/${member.id}`.
+- **`components/server/server-section.tsx`** : En-tête de section avec bouton "+" (Create Channel) pour ADMIN/MODERATOR et "⚙" (Manage Members) pour ADMIN uniquement. Passe le `channelType` au store modal.
+
+#### Modifications de composants existants
+
+- **`components/server/server-sidebar.tsx`** : Assemblage complet de toutes les sections. La liste Members exclut l'utilisateur courant (`member.profileId !== profile.id`). La section Text Channels est toujours rendue (pour rendre visible le bouton "Create Channel"). Audio/Video/Members sont conditionnels.
+- **`components/modals/create-channel-modal.tsx`** : Reçoit le `channelType` depuis le store modal et pré-sélectionne le type dans le formulaire via `useEffect`. Correction : suppression du `<FormControl>` en double autour de `<SelectTrigger>`.
+- **`hooks/use-modal-store.ts`** : Ajout de `channelType?: ChannelType` dans `ModalData`.
+- **`types.ts`** : Passage en `import type` pour les types Prisma (évite le bundle runtime côté client).
+- **`components/navigation/navigation-item.tsx`** : Correction Tailwind v4 — `rounded-6` → `rounded-[24px]`, `rounded-4` → `rounded-[16px]`.
+- **`components/server/server-search.tsx`** : Correction `useRouter` — `next/router` → `next/navigation` (App Router).
+
+#### Routes API
+
+- **`app/api/channels/route.ts`** (POST) : Validation Zod ajoutée (`createChannelSchema` — nom trimé, min 1, max 64, interdit "general" insensible à la casse, type enum `ChannelType`).
+- **`app/api/channels/[channelId]/route.ts`** (PATCH + DELETE) : **Nouveau fichier.** Helper `getAuthorizedChannel()` vérifie le rôle ADMIN/MODERATOR. `updateChannelSchema` pour PATCH. Protection du canal "general" contre la suppression. Paramètre `channelId` via `await params` (Next.js 16).
+
+#### Corrections de bugs
+
+- `next/router` utilisé dans `server-search.tsx` (App Router requiert `next/navigation`).
+- Import Prisma runtime dans un composant client → passage en `import type` + enums depuis `/lib/generated/prisma/enums`.
+- Erreur d'hydratation : `<div>` imbriqué dans `<p>` dans `server-channel.tsx` → déplacé hors du `<p>`.
+- Route `channels/route.ts` utilisée pour PATCH/DELETE → création de la route dynamique `[channelId]/route.ts`.
+- Dépendance `@testing-library/dom` absente explicitement → ajoutée dans `devDependencies`.
+
+#### Dette UI identifiée lors de la revue (non appliquée)
+
+| # | Fichier | Ligne | Problème | Priorité |
+|---|---|---|---|---|
+| 1 | `server-channel.tsx`, `server-member.tsx`, `server-search.tsx` | 34, 30, 45/49 | Navigation vers des routes non encore implémentées (channel page, conversations) → risque de 404 | Bloquant à implémenter |
+| 2 | `server-channel.tsx` | 54, 57 | Boutons Edit/Delete uniquement visibles au hover → non accessibles clavier/mobile | Post-tuto |
+| 3 | `server-section.tsx` | 33, 44 | Boutons icon-only sans `aria-label` explicite | Post-tuto |
+| 4 | `user-avatar.tsx` | 11 | `AvatarFallback` absent → image cassée ou manquante donne un avatar vide | Post-tuto |
+| 5 | `server-sidebar.tsx` vs `server-search.tsx` | — | Incohérence : Search inclut tous les membres, la liste Members exclut l'utilisateur courant | Post-tuto |
+| 6 | `server-channel.tsx` | 36 | Typo de classe CSS : `md-1` au lieu de `mb-1` | Mineur |
+| 7 | `create-channel-modal.tsx` vs `channels/route.ts` | — | Validation client case-sensitive (`name !== "general"`), serveur case-insensitive (`toLowerCase()`) | Mineur |
+
+#### Validation au 4 mai 2026
+
+- `npm run lint` : OK (0 erreur, 0 warning)
+- `npx tsc --noEmit` : OK
+- `npm run build` : OK
+- `npm run test:unit` : OK (18/18)
+
+---
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

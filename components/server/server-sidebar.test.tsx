@@ -109,9 +109,12 @@ describe("ServerSidebar", () => {
     expect(mocks.redirectMock).not.toHaveBeenCalled();
     expect(tree.type).toBe("div");
 
-    const child = tree.props.children;
-    expect(child.props.role).toBe(MemberRole.MODERATOR);
-    expect((child.props.server as { name: string }).name).toBe("Palantir");
+    const children = React.Children.toArray(tree.props.children) as React.ReactElement[];
+    const header = children.find((child) => "role" in (child.props ?? {}));
+
+    expect(header).toBeDefined();
+    expect(header?.props.role).toBe(MemberRole.MODERATOR);
+    expect((header?.props.server as { name: string }).name).toBe("Palantir");
   });
 
   it("redirige vers / quand le profil n'est pas membre du serveur", async () => {

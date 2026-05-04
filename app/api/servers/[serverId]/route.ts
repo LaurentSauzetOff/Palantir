@@ -25,3 +25,25 @@ export async function PATCH(
     return new NextResponse("Internal server error", { status: 500 });
   }
 }
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: Promise<{ serverId: string }> },
+) {
+  try {
+    const profile = await getCurrentProfile();
+
+    if (!profile) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const server = await prisma.server.delete({
+      where: { id: (await params).serverId, profileId: profile.id },
+    });
+
+    return NextResponse.json(server);
+  } catch (error) {
+    console.error("[SERVER_ID_DELETE]", error);
+    return new NextResponse("Internal server error", { status: 500 });
+  }
+}

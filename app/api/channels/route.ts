@@ -4,6 +4,9 @@ import { ChannelType, MemberRole } from "@/lib/generated/prisma/enums";
 import { NextResponse } from "next/server";
 import * as z from "zod";
 
+const jsonError = (error: string, status: number) =>
+  NextResponse.json({ error }, { status });
+
 const createChannelSchema = z.object({
   name: z
     .string()
@@ -26,18 +29,15 @@ export async function POST(req: Request) {
     const serverId = searchParams.get("serverId");
 
     if (!profile) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return jsonError("Unauthorized", 401);
     }
 
     if (!serverId) {
-      return new NextResponse("Server ID is required", { status: 400 });
+      return jsonError("Server ID is required", 400);
     }
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request payload" },
-        { status: 400 },
-      );
+      return jsonError("Invalid request payload", 400);
     }
 
     const { name, type } = parsed.data;
@@ -68,6 +68,6 @@ export async function POST(req: Request) {
     return NextResponse.json(server);
   } catch (error) {
     console.error("[CHANNEL_POST]", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return jsonError("Internal server error", 500);
   }
 }

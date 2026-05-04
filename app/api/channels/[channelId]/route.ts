@@ -1,8 +1,18 @@
 import { getCurrentProfile } from "@/lib/current-profile";
 import { prisma } from "@/lib/db";
-import { MemberRole } from "@/lib/generated/prisma/enums";
+import { ChannelType, MemberRole } from "@/lib/generated/prisma/enums";
+import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import * as z from "zod";
+
+const jsonError = (error: string, status: number) =>
+  NextResponse.json({ error }, { status });
+
+const channelTypeValues = [
+  ChannelType.TEXT,
+  ChannelType.AUDIO,
+  ChannelType.VIDEO,
+] as const;
 
 const updateChannelSchema = z.object({
   name: z
@@ -13,6 +23,7 @@ const updateChannelSchema = z.object({
     .refine((name) => name.toLowerCase() !== "general", {
       message: "Channel name cannot be 'general'",
     }),
+  type: z.enum(channelTypeValues),
 });
 
 async function getAuthorizedChannel(channelId: string, profileId: string) {
@@ -30,9 +41,6 @@ async function getAuthorizedChannel(channelId: string, profileId: string) {
         },
       },
     },
-    include: {
-      server: true,
-    },
   });
 }
 
@@ -45,23 +53,21 @@ export async function DELETE(
     const { channelId } = await params;
 
     if (!profile) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return jsonError("Unauthorized", 401);
     }
 
     if (!channelId) {
-      return new NextResponse("Channel ID is required", { status: 400 });
+      return jsonError("Channel ID is required", 400);
     }
 
     const channel = await getAuthorizedChannel(channelId, profile.id);
 
     if (!channel) {
-      return new NextResponse("Channel not found", { status: 404 });
+      return jsonError("Channel not found", 404);
     }
 
-    if (channel.name === "general") {
-      return new NextResponse("Channel name cannot be 'general'", {
-        status: 400,
-      });
+    if (channel.name.toLowerCase() === "general") {
+      return jsonError("Channel name cannot be 'general'", 400);
     }
 
     await prisma.channel.delete({
@@ -70,10 +76,13 @@ export async function DELETE(
       },
     });
 
+    revalidatePath(`/servers/${channel.serverId}`);
+    revalidatePath(`/servers/${channel.serverId}/channels/${channel.id}`);
+
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     console.error("[CHANNEL_DELETE]", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return jsonError("Internal server error", 500);
   }
 }
 
@@ -88,26 +97,23 @@ export async function PATCH(
     const parsed = updateChannelSchema.safeParse(body);
 
     if (!profile) {
-      return new NextResponse("Unauthorized", { status: 401 });
+      return jsonError("Unauthorized", 401);
     }
 
     if (!channelId) {
-      return new NextResponse("Channel ID is required", { status: 400 });
+      return jsonError("Channel ID is required", 400);
     }
 
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "Invalid request payload" },
-        { status: 400 },
-      );
+      return jsonError("Invalid request payload", 400);
     }
 
-    const { name } = parsed.data;
+    const { name, type } = parsed.data;
 
     const channel = await getAuthorizedChannel(channelId, profile.id);
 
     if (!channel) {
-      return new NextResponse("Channel not found", { status: 404 });
+      return jsonError("Channel not found", 404);
     }
 
     const updatedChannel = await prisma.channel.update({
@@ -116,12 +122,16 @@ export async function PATCH(
       },
       data: {
         name,
+        type,
       },
     });
+
+    revalidatePath(`/servers/${channel.serverId}`);
+    revalidatePath(`/servers/${channel.serverId}/channels/${channel.id}`);
 
     return NextResponse.json(updatedChannel);
   } catch (error) {
     console.error("[CHANNEL_PATCH]", error);
-    return new NextResponse("Internal server error", { status: 500 });
+    return jsonError("Internal server error", 500);
   }
 }

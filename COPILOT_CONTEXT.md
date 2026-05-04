@@ -275,6 +275,43 @@ Une fois le tutoriel terminé dans son intégralité, une **phase d'optimisation
 - Améliorer la découvrabilité et l'ergonomie des actions contextuelles dans la modal members (menu d'actions plus explicite, cible de clic plus confortable)
 - Vérifier les flows de mutation de la modal members directement dans le navigateur en phase post-tuto pour valider la perception UX réelle, pas seulement la structure du code
 
+#### Audit UI/UX ciblé — chapitre channels/sidebar (4 mai 2026)
+
+Constats à conserver pour traitement en fin de tutoriel :
+
+- **Navigation vers conversations non implémentée** *(reste à faire)*
+	- `components/server/server-member.tsx` et `components/server/server-search.tsx` redirigent vers `/servers/[serverId]/conversations/[memberId]`.
+	- Tant que la page conversations n'existe pas, cela mène à des 404 depuis la sidebar/recherche.
+
+- **Incohérence validation Create vs Edit channel** *(reste à faire)*
+	- `create-channel-modal.tsx` applique `trim + max(64) + general case-insensitive`.
+	- `edit-channel-modal.tsx` reste plus permissif (`name !== "general"` case-sensitive, sans trim/max).
+	- Objectif post-tuto : aligner strictement les schémas client (et messages d'erreur) entre create/edit.
+
+- **Feedback utilisateur sur erreurs des modales channels** *(reste à faire)*
+	- `create-channel-modal.tsx`, `edit-channel-modal.tsx`, `delete-channel-modal.tsx` loggent encore en console sans retour visuel.
+	- Objectif post-tuto : toast/inline error cohérent et actionnable.
+
+- **Incohérence Search vs section Members** *(reste à faire)*
+	- `ServerSearch` inclut tous les membres (y compris soi-même), la section Members de la sidebar exclut le profil courant.
+	- Décider et appliquer une seule règle produit (inclure/exclure self) dans les deux vues.
+
+- **Composant interactif principal de ligne channel** *(à revalider post-tuto)*
+	- `server-channel.tsx` utilise un `div` avec `role="button"`.
+	- Fonctionnel aujourd'hui, mais à comparer post-tuto avec une implémentation `button`/`Link` plus native selon le comportement final attendu.
+
+- **Micro-dette visuelle dans modal de suppression channel** *(reste à faire)*
+	- Typo CSS `itemx-center` dans `delete-channel-modal.tsx`.
+
+- **Fallback avatar perfectible dans la liste membres** *(reste à faire)*
+	- `UserAvatar` supporte désormais `fallback`, mais `server-member.tsx` ne lui passe pas encore les initiales du membre.
+
+Points déjà traités pendant ce chapitre (ne plus considérer comme dettes ouvertes) :
+
+- Accessibilité de base des actions Edit/Delete channel améliorée (vrais boutons + `aria-label` + stopPropagation).
+- Correctif `md-1` -> `mb-1` appliqué dans `server-channel.tsx`.
+- `AvatarFallback` réintroduit dans `UserAvatar`.
+
 ### Tests
 - Augmenter la couverture de tests unitaires sur les composants critiques
 - Ajouter des tests e2e sur les flows principaux (création serveur, navigation, messages)

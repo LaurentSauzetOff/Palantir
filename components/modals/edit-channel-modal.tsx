@@ -34,7 +34,7 @@ import {
 
 import { Input } from "@/components/ui/input";
 import { Button } from "../ui/button";
-import { useParams, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useModal } from "@/hooks/use-modal-store";
 import { ChannelType } from "@/lib/generated/prisma/enums";
 import { useEffect } from "react";
@@ -48,46 +48,41 @@ const channelTypeValues = [
 const formSchema = z.object({
   name: z
     .string()
-    .trim()
     .min(1, {
       message: "Channel name is required",
     })
-    .max(64, {
-      message: "Channel name is too long",
-    })
-    .refine((name) => name.toLowerCase() !== "general", {
+    .refine((name) => name !== "general", {
       message: "Channel name cannot be 'general'",
     }),
   type: z.enum(channelTypeValues),
 });
 
-export const CreateChannelModal = () => {
+export const EditChannelModal = () => {
   const { isOpen, onClose, type, data } = useModal();
 
-  const isModalOpen = isOpen && type === "createChannel";
-  const { channelType } = data || {};
+  const isModalOpen = isOpen && type === "editChannel";
+  const { channel, server } = data || {};
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      type: channelType || ChannelType.TEXT,
+      type: ChannelType.TEXT,
     },
   });
 
   useEffect(() => {
-    if (channelType) {
-      form.setValue("type", channelType);
-    } else {
-      form.setValue("type", ChannelType.TEXT);
+    if (isModalOpen && channel) {
+      form.reset({
+        name: channel.name,
+        type: channel.type,
+      });
     }
-  }, [channelType, form]);
+  }, [channel, form, isModalOpen]);
 
   const isLoading = form.formState.isSubmitting;
 
   const router = useRouter();
-
-  const params = useParams();
 
   const handleClose = () => {
     form.reset();
@@ -97,12 +92,12 @@ export const CreateChannelModal = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       const url = qs.stringifyUrl({
-        url: "/api/channels",
+        url: `/api/channels/${channel?.id}`,
         query: {
-          serverId: params.serverId,
+          serverId: server?.id,
         },
       });
-      await axios.post(url, values);
+      await axios.patch(url, values);
 
       form.reset();
       router.refresh();
@@ -124,7 +119,7 @@ export const CreateChannelModal = () => {
       <DialogContent className="bg-white text-black p-0 overflow-hidden">
         <DialogHeader className="pt-8 px-6">
           <DialogTitle className="text-2xl text-center font-bold">
-            Create channel
+            Edit channel
           </DialogTitle>
         </DialogHeader>
 
@@ -188,7 +183,7 @@ export const CreateChannelModal = () => {
             </div>
             <DialogFooter className="bg-gray-100 px-6 py-4">
               <Button disabled={isLoading} variant="primary">
-                create
+                Save
               </Button>
             </DialogFooter>
           </form>

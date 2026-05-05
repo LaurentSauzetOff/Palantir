@@ -231,6 +231,7 @@ Dans cette version de Next.js, la convention de fichier middleware a été renom
 
 - Le chapitre est considéré comme terminé fonctionnellement.
 - Les écarts relevés ci-dessous sont **conservés en l'état** pour l'instant et serviront de base de vérification lors de la phase d'optimisation post-tuto.
+- **Action fin de tuto** : revenir sur l'ensemble de la partie design mobile (navigation, sidebars, toggle, responsive UI/UX) pour harmonisation globale.
 
 #### Écarts techniques/UI/UX à revalider ensuite
 

@@ -232,6 +232,8 @@ Dans cette version de Next.js, la convention de fichier middleware a été renom
 - Le chapitre est considéré comme terminé fonctionnellement.
 - Les écarts relevés ci-dessous sont **conservés en l'état** pour l'instant et serviront de base de vérification lors de la phase d'optimisation post-tuto.
 - **Action fin de tuto** : revenir sur l'ensemble de la partie design mobile (navigation, sidebars, toggle, responsive UI/UX) pour harmonisation globale.
+- **Action fin de tuto** : déplacer `SocketProvider` du layout racine `app/layout.tsx` vers le layout `app/(main)/(routes)/layout.tsx` pour ne pas initier la connexion WebSocket sur les pages publiques (auth, setup).
+- **Action fin de tuto** : migrer l'implémentation Socket.io vers un serveur Node.js standalone séparé (`server.js`) au lieu du hack Pages Router `pages/api/socket/io.ts`. L'approche du tuto (2023/Next.js 13/Webpack) est incompatible avec Next.js 16 + Turbopack : le transport polling reçoit des 400, le WebSocket pur échoue en dev. En production (sans Turbopack) ça peut fonctionner partiellement, mais l'architecture correcte 2026 est un process Socket.io indépendant.
 
 #### Écarts techniques/UI/UX à revalider ensuite
 

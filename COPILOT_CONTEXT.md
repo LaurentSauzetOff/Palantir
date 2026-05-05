@@ -225,6 +225,30 @@ Dans cette version de Next.js, la convention de fichier middleware a été renom
 - `npm run build` : OK
 - `npm run test:unit` : OK (18/18)
 
+### Revue de branche `feat/channel-id-page` (5 mai 2026)
+
+#### Décision de suivi
+
+- Le chapitre est considéré comme terminé fonctionnellement.
+- Les écarts relevés ci-dessous sont **conservés en l'état** pour l'instant et serviront de base de vérification lors de la phase d'optimisation post-tuto.
+
+#### Écarts techniques/UI/UX à revalider ensuite
+
+- **Blocant TypeScript** : `app/(main)/(routes)/servers/[serverId]/conversations/[memberId]/page.tsx` existe mais est vide (fichier non modulaire), ce qui casse `npx tsc --noEmit`.
+- **Blocant tests typés** : `components/server/server-sidebar.test.tsx` contient des accès `props` insuffisamment typés (erreurs TS sur usage de `in` + `unknown`).
+- **Placeholder en prod** : `app/(main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx` affiche actuellement `Contenu fake`.
+- **Durcissement API members à compléter** : `app/api/members/[memberId]/route.ts` n'applique pas encore de validation stricte du champ `role` (retours métier potentiellement en 500 au lieu de 400).
+- **Feedback utilisateur manquant dans modales** : erreurs encore journalisées en console sans retour UI dans `members-modal.tsx`, `edit-channel-modal.tsx`, `delete-channel-modal.tsx`.
+- **Incohérences de validation Create/Edit channel** : `edit-channel-modal.tsx` reste moins stricte que `create-channel-modal.tsx` (trim/max/case-insensitive à aligner).
+- **Micro-dette UI** : typo de classe `itemx-center` dans `delete-channel-modal.tsx`.
+- **Accessibilité** : trigger icône seule dans `members-modal.tsx` à renforcer (libellé explicite et ergonomie action menu).
+- **Cohérence de langue UI** : mélange FR/EN à harmoniser dans les surfaces d'administration membres/channels.
+
+#### Validation au 5 mai 2026
+
+- `npm run lint` : OK
+- `npx tsc --noEmit` : KO (4 erreurs connues sur page conversation vide + typings test sidebar)
+
 ---
 
 ### Règles Prisma 7 + Neon validées

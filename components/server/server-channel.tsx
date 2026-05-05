@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { ActionTooltip } from "@/components/action-tooltip";
-import { useModal } from "@/hooks/use-modal-store";
+import { ModalType, useModal } from "@/hooks/use-modal-store";
 
 interface ServerChannelProps {
   channel: Channel;
@@ -38,13 +38,21 @@ export const ServerChannel = ({
   const router = useRouter();
 
   const Icon = iconMap[channel.type];
+
+  const onClick = () => {
+    router.push(`/servers/${server.id}/channels/${channel.id}`);
+  };
+
+  const onAction = (e: React.MouseEvent, action: ModalType) => {
+    e.stopPropagation();
+    onOpen(action, { channel, server });
+  };
+
   return (
     <div
       role="button"
       tabIndex={0}
-      onClick={() =>
-        router.push(`/servers/${server.id}/channels/${channel.id}`)
-      }
+      onClick={onClick}
       onKeyDown={(event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
@@ -74,10 +82,7 @@ export const ServerChannel = ({
               type="button"
               aria-label={`Edit channel ${channel.name}`}
               className="p-1 rounded-sm text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpen("editChannel", { channel, server });
-              }}
+              onClick={(event) => onAction(event, "editChannel")}
             >
               <Edit className="w-4 h-4" />
             </button>
@@ -87,10 +92,7 @@ export const ServerChannel = ({
               type="button"
               aria-label={`Delete channel ${channel.name}`}
               className="p-1 rounded-sm text-zinc-500 hover:text-zinc-600 dark:text-zinc-400 dark:hover:text-zinc-300 transition opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
-              onClick={(event) => {
-                event.stopPropagation();
-                onOpen("deleteChannel", { channel, server });
-              }}
+              onClick={(e) => onAction(e, "deleteChannel")}
             >
               <Trash className="w-4 h-4" />
             </button>

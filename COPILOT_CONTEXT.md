@@ -292,6 +292,18 @@ Quand les routes API devront émettre des événements socket (ex : notifier les
 
 ---
 
+### Branche `feat/chat-input-component` (7 mai 2026)
+
+#### Nouveau composant créé
+
+- **`components/chat/chat-input.tsx`** : composant de saisie de message. Formulaire contrôlé avec `react-hook-form` + validation Zod (`content` min 1 char). Soumission via `axios.post` sur une `apiUrl` dynamique composée avec `query-string` (supporte les contextes channel et conversation via la prop `type`). État `disabled` pendant la soumission (`isSubmitting`). Placeholder adaptatif : `Message #canal` ou `Message utilisateur`. Boutons stub pour l'attachement de fichier (Plus) et le sélecteur d'emoji (Smile), non encore câblés.
+
+#### Notes pour la suite
+- Le bouton Plus (attachement fichier) et le bouton Smile (emoji picker) sont des stubs visuels — à brancher lors des chapitres upload et emoji du tuto.
+- La route API cible (`apiUrl`) sera définie par la page parente selon le contexte (channel ou conversation).
+
+---
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

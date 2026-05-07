@@ -254,6 +254,44 @@ Dans cette version de Next.js, la convention de fichier middleware a été renom
 
 ---
 
+### Refactoring branche `refactor/socketio-implementation` (7 mai 2026)
+
+#### Contexte
+L'implémentation Socket.io du tuto (2023) utilisait un hack Pages Router (`pages/api/socket/io.ts`) incompatible avec Next.js 16 + Turbopack. Cette branche remplace cette approche par l'architecture moderne recommandée dans la documentation officielle Socket.io : serveur HTTP Node.js standalone.
+
+#### Fichiers créés
+- **`server.js`** (racine) : serveur HTTP Node.js standalone intégrant Next.js (`next()`) et Socket.io (`new Server(httpServer)`). Lancé via `node server.js`. Reste en `.js` car exécuté directement par Node sans compilateur TypeScript.
+- **`app/socket.ts`** : singleton client Socket.io (`io({ autoConnect: false })`). Marqué `"use client"`, importé dans le provider. En `.ts` car compilé par Next.js/bundler.
+
+#### Fichiers supprimés
+- **`pages/api/socket/io.ts`** : ancien handler Pages Router — obsolète.
+
+#### Fichiers modifiés
+- **`package.json`** : scripts `dev` et `start` pointent sur `node server.js`. Ajout de `"type": "module"` (supprime le warning Node.js `MODULE_TYPELESS_PACKAGE_JSON`).
+- **`components/providers/socket-provider.tsx`** : utilise le singleton `app/socket.ts` au lieu de créer une instance par render. Les listeners sont enregistrés avant `socketInstance.connect()` pour garantir que l'événement `connect` n'est jamais raté. Nettoyage strict avec références de fonctions (`off(event, handler)`).
+- **`components/mobile-toggle.tsx`** : suppression du `asChild` sur `SheetTrigger` (causait un mismatch d'hydratation React entre le `<button>` Button et le `<span>` Avatar). Le trigger est maintenant un élément natif stylé directement.
+- **`types.ts`** : suppression de `NextApiResponseServerIo` (dépendait de l'ancien handler Pages Router, plus utile).
+
+#### Bugs corrigés
+- **Mismatch d'hydratation** : `MobileToggle` → `SheetTrigger asChild` + `Button` générait un arbre HTML différent côté serveur et client. Résolu en retirant `asChild` et en stylant le trigger directement.
+- **Build error `server-only` depuis un Client Component** : transformer `MobileToggle` en Client Component avait tiré la chaîne `server-sidebar → current-profile → auth()` côté navigateur. Résolu en maintenant `MobileToggle` comme Server Component.
+- **SocketIndicator bloqué sur "Connecting..."** : l'événement `connect` était émis avant l'enregistrement des listeners (singleton déjà connecté au moment du `useEffect`). Résolu avec `autoConnect: false` + `socketInstance.connect()` après enregistrement des handlers + guard `if (socketInstance.connected)` pour l'état initial.
+
+#### Architecture résultante
+```
+node server.js
+ ├── Next.js (App Router, SSR, API routes)
+ └── Socket.io server attaché au même port (3000)
+      └── Client : app/socket.ts (singleton, autoConnect: false)
+           └── SocketProvider : gère connect/disconnect/connect_error
+                └── useSocket() → SocketIndicator, hooks métier futurs
+```
+
+#### Note pour la suite — émission d'événements depuis les routes API
+Quand les routes API devront émettre des événements socket (ex : notifier les clients d'un nouveau message), l'instance `io` de `server.js` devra être exportée via un module singleton (ex: `lib/socket-io.ts`), car elle n'est pas accessible autrement depuis les routes App Router.
+
+---
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.
@@ -348,6 +386,72 @@ Points déjà traités pendant ce chapitre (ne plus considérer comme dettes ouv
 - Audit OWASP des routes API (validation input, autorisation, rate limiting)
 - Vérifier l'exposition des données Prisma retournées au client
 - Revoir les codes de retour des routes `members/[memberId]` : éviter les faux 200 silencieux et les 500 sur erreurs métier attendues (404/403/400 explicites)
+
+---
+
+## Scénarios de panne à tester en fin de tuto
+
+Ces trois cas ont été analysés lors de la mise en place de Socket.io. Ils sont volontairement non implémentés pour l'instant et seront mis à l'épreuve une fois le tutoriel terminé dans son intégralité.
+
+### Cas 1 — Coupure réseau côté participant
+
+**Symptôme** : un participant perd sa connexion internet en pleine visio.
+
+**Comportement attendu** :
+- Ne pas retirer le participant immédiatement à la déconnexion socket.
+- Démarrer un timer de grâce côté serveur (20 à 45 secondes).
+- Afficher un badge `X se reconnecte…` aux autres participants (pas `X a quitté`).
+- Si reconnexion dans le délai : restaurer la session (salle, rôle, mute, caméra) sans bruit.
+- Si timeout atteint : marquer `left`, notifier les autres, nettoyer les ressources.
+- Ne pas spammer le chat de notifications join/leave sur les micro-coupures.
+
+**Clés techniques** :
+- `participantId` stable découplé de l'id socket.
+- Idempotence des événements join/leave/rejoin.
+- Timer de grâce géré côté `server.js` (pas côté client).
+
+---
+
+### Cas 2 — Coupure réseau côté admin/modérateur
+
+**Symptôme** : l'admin (propriétaire du serveur ou modérateur) se déconnecte involontairement.
+
+**Comportement attendu** :
+- Le rôle admin est persistant en base (Prisma) — il ne doit jamais dépendre de la socket active.
+- À la reconnexion, Clerk ré-authentifie l'utilisateur et ses droits sont rechargés depuis la DB.
+- Fenêtre de grâce identique au Cas 1 : les droits sont restaurés automatiquement au retour.
+- Si l'absence dépasse le timeout : promotion temporaire d'un modérateur de confiance (soft-host transfer), avec audit log.
+- Certaines actions sensibles (expulsion, fermeture de room, changement de permissions globales) peuvent être gelées pendant l'absence admin (host lock).
+- UX : badge `Admin en reconnexion…` (pas `Admin parti`). Au retour : prompt `Tu as retrouvé la connexion. Reprendre les contrôles ?`.
+
+**Clés techniques** :
+- Machine à états participant : `connected → reconnecting → temporarily-replaced → resumed → left-final`.
+- Séparation stricte rôle persistant (DB) / présence volatile (socket).
+- Traçabilité de toute promotion temporaire.
+
+---
+
+### Cas 3 — Panne de l'application elle-même
+
+**Symptôme** : le serveur Node.js (`server.js`) ou la base de données tombe en prod.
+
+**Comportement attendu** :
+- Les clients affichent un état `Service indisponible, reconnexion en cours` (pas un écran blanc ou une erreur 500 nue).
+- La reconnexion client tente un backoff exponentiel (géré nativement par Socket.io avec `reconnectionDelay`).
+- Les sessions utilisateur et les rôles persistent en DB — pas de perte d'identité au redémarrage.
+- Les opérations critiques sont idempotentes pour éviter les doublons après reprise.
+- État minimal rejoué après redémarrage : rôle, canaux accessibles, dernier état connu.
+
+**Prérequis production** :
+- Plusieurs instances derrière un load balancer + adapter distribué Socket.io (Redis adapter) pour partager l'état socket entre instances.
+- Probes de santé pour sortir une instance malade du trafic.
+- Sauvegardes Neon + procédure de restauration testée.
+- Monitoring + alerting en temps réel, runbook incident documenté.
+
+**MVP acceptable** :
+- Une seule instance + redémarrage automatique (`pm2` ou `systemd`).
+- Reconnexion automatique Socket.io côté client avec backoff.
+- Affichage d'un bandeau `Reconnexion en cours…` pendant l'indisponibilité.
 
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.

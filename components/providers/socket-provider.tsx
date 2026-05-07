@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { io as ClientIO } from "socket.io-client";
+import { socket as socketInstance } from "@/app/socket";
 
 type SocketContextType = {
-  socket: any | null;
+  socket: typeof socketInstance | null;
   isConnected: boolean;
   isLoading: boolean;
 };
@@ -20,42 +20,47 @@ export const useSocket = () => {
 };
 
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-  const [socket, setSocket] = useState<any | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const socketInstance = new (ClientIO as any)(
-      process.env.NEXT_PUBLIC_SITE_URL!,
-      {
-        path: "/api/socket/io",
-        addTrailingSlash: false,
-      },
-    );
-
-    socketInstance.on("connect", () => {
+    const onConnect = () => {
       setIsConnected(true);
       setIsLoading(false);
-    });
+    };
 
-    socketInstance.on("disconnect", () => {
+    const onDisconnect = () => {
       setIsConnected(false);
       setIsLoading(false);
-    });
+    };
 
-    socketInstance.on("connect_error", () => {
+    const onConnectError = () => {
+      setIsConnected(false);
       setIsLoading(false);
-    });
+    };
 
-    setSocket(socketInstance);
+    socketInstance.on("connect", onConnect);
+    socketInstance.on("disconnect", onDisconnect);
+    socketInstance.on("connect_error", onConnectError);
+
+    if (socketInstance.connected) {
+      setIsConnected(true);
+      setIsLoading(false);
+    } else {
+      setIsConnected(false);
+      setIsLoading(true);
+      socketInstance.connect();
+    }
 
     return () => {
-      socketInstance.disconnect();
+      socketInstance.off("connect", onConnect);
+      socketInstance.off("disconnect", onDisconnect);
+      socketInstance.off("connect_error", onConnectError);
     };
   }, []);
 
   return (
-    <SocketContext.Provider value={{ socket, isConnected, isLoading }}>
+    <SocketContext.Provider value={{ socket: socketInstance, isConnected, isLoading }}>
       {children}
     </SocketContext.Provider>
   );

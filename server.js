@@ -14,6 +14,8 @@ app.prepare().then(() => {
 
   const io = new Server(httpServer);
 
+  globalThis.__socketio = io;
+
   io.on("connection", (socket) => {
     console.log(`[Socket.IO] Client connecté : ${socket.id}`);
     socket.on("disconnect", () => {

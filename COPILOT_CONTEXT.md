@@ -304,6 +304,28 @@ Quand les routes API devront émettre des événements socket (ex : notifier les
 
 ---
 
+### Branche `feat/messages-api` (7 mai 2026)
+
+#### Nouveaux fichiers créés
+
+- **`app/api/messages/route.ts`** : route App Router `POST /api/messages`. Remplace le handler Pages Router du tuto (`pages/api/socket/messages.ts`). Valide `serverId`, `channelId`, `content`. Vérifie l'appartenance au serveur et l'existence du canal avant écriture. Retourne 201 avec le message complet (membre + profil inclus). Émet l'événement `chat:{channelId}:messages` via `getIo()` après persistance en base.
+- **`lib/socket-io.ts`** : singleton `globalThis.__socketio` pour partager l'instance Socket.IO Server entre `server.js` et les routes App Router (un `let` module-level ne suffit pas car Next.js bundle les routes dans des contextes séparés).
+
+#### Fichiers modifiés
+
+- **`server.js`** : assignation de `globalThis.__socketio = io` après création du serveur Socket.IO.
+- **`app/(main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx`** : correction de l'`apiUrl` — `/api/socket/messages` (chemin Pages Router du tuto) → `/api/messages`.
+
+#### Fichiers supprimés
+
+- **`lib/current-profile-pages.ts`** : helper Pages Router (prenait un `NextApiRequest` pour Clerk). Devenu inutile, toutes les routes utilisent désormais `getCurrentProfile()` (App Router).
+
+#### Bug corrigé
+
+La version tuto avait un `try/catch` en dehors du handler `export default function handler(...)`, ce qui le rendait inopérant. Corrigé dans la réécriture App Router.
+
+---
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

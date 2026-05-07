@@ -51,7 +51,7 @@ export const MembersModal = () => {
   const { onOpen, isOpen, onClose, type, data } = useModal();
 
   const isModalOpen = isOpen && type === "members";
-  const { server } = data as { server: ServerWithMembersWithProfiles };
+  const { server } = (data ?? {}) as { server: ServerWithMembersWithProfiles };
 
   const [loadingId, setLoadingId] = useState("");
 

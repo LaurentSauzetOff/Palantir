@@ -326,6 +326,34 @@ La version tuto avait un `try/catch` en dehors du handler `export default functi
 
 ---
 
+### Mise à jour branche `feat/message-attachment` (7 mai 2026)
+
+#### Bug observé
+
+- Envoi d'un PDF fonctionnel (fichier bien enregistré en base), mais erreur réseau côté client sur : `GET /_next/image?...` avec statut **400 Bad Request**.
+- Cause racine : la détection du type de fichier reposait sur l'extension de l'URL (`split(".").pop()`).
+- Les URLs Uploadthing (`*.ufs.sh`) ne contiennent pas toujours l'extension (`.pdf`), ce qui faisait passer certains PDF dans `next/image` par erreur.
+
+#### Correctif appliqué
+
+- Fichier modifié : **`components/file-upload.tsx`**.
+- Changement de stratégie : détection basée sur `endpoint` et non sur l'extension d'URL.
+- Si `endpoint === "serverImage"` : prévisualisation via `next/image` conservée.
+- Pour `messageFile` : rendu en lien fichier générique (icône + "Ouvrir le fichier"), sans optimisation image Next.
+
+#### Résultat
+
+- Plus d'appel `/_next/image` pour les pièces jointes PDF/textes.
+- Plus de 400 lié à l'optimizer d'image dans ce flow.
+- Upload et persistance DB inchangés.
+
+#### Décision produit actuelle
+
+- Conserver ce comportement simple pour l'instant (pas de preview image dédiée sur `messageFile`).
+- Évolution possible plus tard : brancher une détection MIME fiable (retour Uploadthing) pour afficher un preview uniquement quand le fichier est une vraie image.
+
+---
+
 ### Règles Prisma 7 + Neon validées
 
 - Ne pas définir `url` dans le bloc `datasource` de `schema.prisma`.

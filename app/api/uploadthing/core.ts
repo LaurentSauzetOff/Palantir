@@ -21,8 +21,8 @@ export const ourFileRouter = {
     "image/webp": { maxFileSize: "8MB", maxFileCount: 1 },
     "image/gif": { maxFileSize: "32MB", maxFileCount: 1 },
     // Vidéos
-    "video/mp4": { maxFileSize: "16MB", maxFileCount: 1 },
-    "video/webm": { maxFileSize: "16MB", maxFileCount: 1 },
+    "video/mp4": { maxFileSize: "32MB", maxFileCount: 1 },
+    "video/webm": { maxFileSize: "32MB", maxFileCount: 1 },
     // Audios (MP3/WAV/OGG pris en charge, limite <= 10MB)
     audio: { maxFileSize: "8MB", maxFileCount: 1 },
     // Archives (limite optimisée pour partage rapide en chat)

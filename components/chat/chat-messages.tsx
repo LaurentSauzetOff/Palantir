@@ -4,9 +4,13 @@ import { Member, Message, Profile } from "@/lib/generated/prisma/client";
 import { format } from "date-fns";
 import { ChatWelcome } from "@/components/chat/chat-welcome";
 import { useChatQuery } from "@/hooks/use-chat-query";
+import { useChatSocket } from "@/hooks/use-chat-socket";
+import { useChatScroll } from "@/hooks/use-chat-scroll";
+import { useChatTyping } from "@/hooks/use-chat-typing";
 import { Loader2, ServerCrash } from "lucide-react";
-import { Fragment } from "react/jsx-runtime";
+import { Fragment, useRef } from "react";
 import { ChatItem } from "./chat-item";
+import { ChatTypingIndicator } from "./chat-typing-indicator";
 
 const DATE_FORMAT = "d MMM yyyy, HH:mm";
 
@@ -40,6 +44,12 @@ export const ChatMessages = ({
   type,
 }: ChatMessagesProps) => {
   const queryKey = `chat:${chatId}`;
+  const addKey = `chat:${chatId}:messages`;
+  const updateKey = `chat:${chatId}:messages:update`;
+
+  const chatRef = useRef<HTMLDivElement>(null);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, status } =
     useChatQuery({
       queryKey,
@@ -47,6 +57,20 @@ export const ChatMessages = ({
       paramKey,
       paramValue,
     });
+
+  useChatSocket({ addKey, updateKey, queryKey });
+
+  const typingUsers = useChatTyping(chatId);
+
+  const count = data?.pages?.reduce((acc, page) => acc + page.items.length, 0) ?? 0;
+
+  useChatScroll({
+    chatRef,
+    bottomRef,
+    count,
+    loadMore: fetchNextPage,
+    shouldLoadMore: !isFetchingNextPage && !!hasNextPage,
+  });
 
   if (status === "pending") {
     return (
@@ -71,7 +95,7 @@ export const ChatMessages = ({
   }
 
   return (
-    <div className="flex-1 flex flex-col p-4 overflow-y-auto">
+    <div ref={chatRef} className="flex-1 flex flex-col p-4 overflow-y-auto">
       <div className="flex-1" />
       <ChatWelcome type={type} name={name} />
       <div className="flex flex-col-reverse mt-auto">
@@ -95,6 +119,8 @@ export const ChatMessages = ({
           </Fragment>
         ))}
       </div>
+      <div ref={bottomRef} />
+      <ChatTypingIndicator typingUsers={typingUsers} />
     </div>
   );
 };

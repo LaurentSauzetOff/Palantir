@@ -946,3 +946,73 @@ Aucun fichier de référence pour les variables d'environnement. À créer pour 
 | P2 | Corriger import Fragment | `components/chat/chat-messages.tsx` |
 | P2 | Créer `.env.example` | racine projet |
 
+---
+
+## Mise à jour session dev — 8 mai 2026 (soir)
+
+### Chat messages — édition/suppression et synchro live
+
+- Route créée **`app/api/messages/[messageId]/route.ts`** avec:
+  - `PATCH` (édition message texte, auteur uniquement)
+  - `DELETE` (soft delete, auteur/admin/modérateur)
+  - émission socket `chat:{channelId}:messages:update`
+- **`components/chat/chat-item.tsx`** branché sur ces routes (`axios.patch` / `axios.delete`).
+- Taille des icônes Edit/Delete augmentée (`w-5 h-5`).
+- Hover actions stabilisées via état React `isHovered` (au lieu de dépendre uniquement du `group-hover`).
+
+### Chat live updates + scroll + typing indicator
+
+- Nouveau hook **`hooks/use-chat-socket.ts`** : patch du cache React Query sur événements socket add/update.
+- **`components/chat/chat-messages.tsx`** branché sur `useChatSocket`.
+- Nouveau hook **`hooks/use-chat-scroll.ts`** :
+  - auto-scroll initial vers le bas,
+  - auto-scroll sur nouveaux messages si l'utilisateur est proche du bas,
+  - chargement pagination quand scroll en haut.
+- Nouveau hook **`hooks/use-chat-typing.ts`** + composant **`components/chat/chat-typing-indicator.tsx`**.
+- **`components/chat/chat-input.tsx`** émet `typing` / `stop-typing` avec debounce.
+- **`server.js`** relaye les événements de frappe (`typing`, `stop-typing`).
+
+### Sidebar members — temps réel join/leave/kick/role
+
+- Nouveau composant client **`components/server/server-sidebar-realtime.tsx`** qui écoute `server:{serverId}:members:update` puis `router.refresh()`.
+- Branché dans **`components/server/server-sidebar.tsx`**.
+- Émission socket ajoutée dans:
+  - **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`** (join via lien)
+  - **`app/api/members/[memberId]/route.ts`** (kick + role update)
+  - **`app/api/servers/[serverId]/leave/route.ts`** (leave)
+
+### Flux d'invitation — robustesse auth et UX
+
+- **`proxy.ts`** : ajout `redirect_url` dans redirection non-auth vers `/sign-in` pour reprendre correctement le lien d'invite après login.
+- **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`** :
+  - usage de `initialProfile()` (création auto du profil Prisma si compte Clerk nouveau),
+  - écran explicite "lien invalide/expiré" au lieu de redirection silencieuse.
+
+### Setup page — déconnexion
+
+- Bouton de déconnexion rendu directement dans **`components/modals/initial-modal.tsx`** via `SignOutButton` Clerk (focus trap de la modal oblige).
+
+### Expiration des liens d'invitation (30 min)
+
+- Schéma Prisma mis à jour: `Server.inviteCodeExpiresAt DateTime?`.
+- Écriture de l'expiration à 30 min dans:
+  - **`app/api/servers/route.ts`** (création serveur)
+  - **`app/api/servers/[serverId]/invite-code/route.ts`** (régénération)
+- Validation de l'expiration dans **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`**.
+- **`components/modals/invite-modal.tsx`** affiche la durée restante (`Expire dans X minutes`).
+
+### Blocage infra Prisma/Neon (à reprendre demain)
+
+- `prisma.config.ts` corrigé pour utiliser `DIRECT_URL` en priorité (`DIRECT_URL || DATABASE_URL`).
+- `npx prisma migrate dev --name invite-link-expiration-30min` échoue encore en local avec `P1001` (endpoint Neon non joignable de manière stable depuis l'environnement actuel).
+- `npx prisma generate` : OK.
+- `psql` non installé localement (`psql-not-found`), donc pas de contournement SQL direct possible aujourd'hui.
+- **Décision** : finaliser la migration DB demain quand la connectivité Neon sera stable.
+
+### Fallbacks temporaires ajoutés (tant que migration non appliquée)
+
+- Fallbacks `try/catch` ajoutés pour ne pas casser l'app si la colonne `inviteCodeExpiresAt` n'existe pas encore:
+  - **`app/api/servers/route.ts`**
+  - **`app/api/servers/[serverId]/invite-code/route.ts`**
+  - **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`**
+

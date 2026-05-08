@@ -29,6 +29,7 @@ import { Button } from "../ui/button";
 import { useSyncExternalStore } from "react";
 import { FileUpload } from "../file-upload";
 import { useRouter } from "next/navigation";
+import { SignOutButton } from "@clerk/nextjs";
 
 const formSchema = z.object({
   name: z.string().min(1, {
@@ -123,7 +124,12 @@ export const InitialModal = () => {
                 )}
               />
             </div>
-            <DialogFooter className="bg-gray-100 px-6 py-4">
+            <DialogFooter className="bg-gray-100 px-6 py-4 flex items-center justify-between">
+              <SignOutButton redirectUrl="/sign-in">
+                <Button type="button" variant="ghost" className="text-xs text-zinc-500">
+                  Se déconnecter
+                </Button>
+              </SignOutButton>
               <Button disabled={isLoading} variant="primary">
                 create 
               </Button>

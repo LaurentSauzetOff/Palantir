@@ -3,6 +3,8 @@ import { prisma } from "@/lib/db";
 import { NextResponse } from "next/server";
 import { v4 as uuidV4 } from "uuid";
 
+const INVITE_EXPIRATION_MS = 30 * 60 * 1000;
+
 export async function PATCH(
   _req: Request,
   { params }: { params: Promise<{ serverId: string }> },
@@ -19,15 +21,31 @@ export async function PATCH(
       return new NextResponse("Server ID is required", { status: 400 });
     }
 
-    const updated = await prisma.server.updateMany({
-      where: {
-        id: serverId,
-        profileId: profile.id,
-      },
-      data: {
-        inviteCode: uuidV4(),
-      },
-    });
+    let updated;
+
+    try {
+      updated = await prisma.server.updateMany({
+        where: {
+          id: serverId,
+          profileId: profile.id,
+        },
+        data: {
+          inviteCode: uuidV4(),
+          inviteCodeExpiresAt: new Date(Date.now() + INVITE_EXPIRATION_MS),
+        },
+      });
+    } catch {
+      // Fallback temporaire tant que la migration n'est pas appliquée.
+      updated = await prisma.server.updateMany({
+        where: {
+          id: serverId,
+          profileId: profile.id,
+        },
+        data: {
+          inviteCode: uuidV4(),
+        },
+      });
+    }
 
     if (updated.count === 0) {
       return new NextResponse("Server not found", { status: 404 });

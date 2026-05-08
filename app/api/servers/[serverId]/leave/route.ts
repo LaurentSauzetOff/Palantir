@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/current-profile";
 import { prisma } from "@/lib/db";
+import { getIo } from "@/lib/socket-io";
 import { NextResponse } from "next/server";
 
 export async function PATCH(
@@ -38,6 +39,16 @@ export async function PATCH(
         },
       },
     });
+
+    try {
+      getIo().emit(`server:${serverId}:members:update`, {
+        serverId,
+        profileId: profile.id,
+        action: "leave",
+      });
+    } catch {
+      // Ne bloque pas la mutation si socket indisponible.
+    }
 
     return NextResponse.json(server);
   } catch (error) {

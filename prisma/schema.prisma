@@ -32,6 +32,7 @@ model Server {
   name String
   imageURL String @db.Text
   inviteCode String @unique
+  inviteCodeExpiresAt DateTime?
 
   profileId String
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)

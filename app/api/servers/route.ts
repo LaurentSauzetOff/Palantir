@@ -11,6 +11,8 @@ const createServerSchema = z.object({
   imageUrl: z.url(),
 });
 
+const INVITE_EXPIRATION_MS = 30 * 60 * 1000;
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -30,25 +32,51 @@ export async function POST(req: Request) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const server = await prisma.server.create({
-      data: {
-        profileId: profile.id,
-        name,
-        imageURL: imageUrl,
-        inviteCode: uuidv4(),
-        channels: {
-          create: [{ name: "general", profileId: profile.id }],
+    let server;
+
+    try {
+      server = await prisma.server.create({
+        data: {
+          profileId: profile.id,
+          name,
+          imageURL: imageUrl,
+          inviteCode: uuidv4(),
+          inviteCodeExpiresAt: new Date(Date.now() + INVITE_EXPIRATION_MS),
+          channels: {
+            create: [{ name: "general", profileId: profile.id }],
+          },
+          members: {
+            create: [
+              {
+                profileId: profile.id,
+                role: MemberRole.ADMIN,
+              },
+            ],
+          },
         },
-        members: {
-          create: [
-            {
-              profileId: profile.id,
-              role: MemberRole.ADMIN,
-            },
-          ],
+      });
+    } catch {
+      // Fallback temporaire tant que la migration n'est pas appliquée.
+      server = await prisma.server.create({
+        data: {
+          profileId: profile.id,
+          name,
+          imageURL: imageUrl,
+          inviteCode: uuidv4(),
+          channels: {
+            create: [{ name: "general", profileId: profile.id }],
+          },
+          members: {
+            create: [
+              {
+                profileId: profile.id,
+                role: MemberRole.ADMIN,
+              },
+            ],
+          },
         },
-      },
-    });
+      });
+    }
 
     return NextResponse.json(server);
   } catch (error) {

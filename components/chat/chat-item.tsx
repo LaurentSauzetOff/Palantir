@@ -1,12 +1,27 @@
 "use client";
 
+import * as z from "zod";
+import axios from "axios";
+import qs from "query-string";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import type { Member, Profile } from "@/lib/generated/prisma/client";
 import { UserAvatar } from "../user-avatar";
 import { ActionTooltip } from "../action-tooltip";
 import Image from "next/image";
-import { FileIcon, DownloadIcon, Edit } from "lucide-react";
-import { useState } from "react";
+import { FileIcon, DownloadIcon, Edit, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 interface ChatItemProps {
   id: string;
@@ -29,6 +44,10 @@ const roleIconMap = {
   ADMIN: "👑",
 };
 
+const formSchema = z.object({
+  content: z.string().min(1).max(2000),
+});
+
 export const ChatItem = ({
   id,
   content,
@@ -43,6 +62,61 @@ export const ChatItem = ({
 }: ChatItemProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const handleKeyDown = (event: any) => {
+      if (event.key === "Escape" || event.keyCode === 27) {
+        setIsEditing(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      content,
+    },
+  });
+
+  const isLoading = form.formState.isSubmitting;
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    try {
+      const url = qs.stringifyUrl({
+        url: `${socketUrl}/${id}`,
+        query: socketQuery,
+      });
+      await axios.patch(url, values);
+      setIsEditing(false);
+    } catch (error) {
+      console.log(error);
+    }
+  };
+
+  const onDelete = async () => {
+    try {
+      setIsDeleting(true);
+      const url = qs.stringifyUrl({
+        url: `${socketUrl}/${id}`,
+        query: socketQuery,
+      });
+      await axios.delete(url);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  useEffect(() => {
+    form.reset({ content });
+  }, [content, form]);
 
   const fileType = (() => {
     if (!fileUrl) return undefined;
@@ -84,8 +158,12 @@ export const ChatItem = ({
   const isFile = fileUrl && !isPDF && !isImage && !isVideo && !isAudio;
 
   return (
-    <div className="relative group flex items-center hover:bg-black/5 p-4 transition w-full">
-      <div className="group flex gap-x-2 items-start w-full">
+    <div
+      className="relative flex items-center hover:bg-black/5 p-4 transition w-full"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="flex gap-x-2 items-start w-full">
         <div className="cursor-pointer hover:drop-shadow-md transition">
           <UserAvatar src={member.profile.imageUrl} />
         </div>
@@ -199,15 +277,65 @@ export const ChatItem = ({
               )}
             </p>
           )}
+          {!fileUrl && isEditing && (
+            <Form {...form}>
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="flex items-center w-full gap-x-2 pt-2"
+              >
+                <FormField
+                  control={form.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem className="flex-1">
+                      <FormControl>
+                        <div className="relative w-full">
+                          <Input
+                            disabled={isLoading}
+                            autoFocus
+                            {...field}
+                            placeholder="Edit your message"
+                            className="p-2 bg-zinc-200/90 dark:bg-zinc-700/75 border-none border-0 focus-visible:ring-0 focus-visible:ring-offset-0 text-zinc-600 dark:text-zinc-200"
+                          />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <Button
+                  disabled={isLoading}
+                  type="submit"
+                  size="sm"
+                  variant="primary"
+                  className="absolute bottom-2 right-2"
+                >
+                  Save
+                </Button>
+              </form>
+              <span className="text-xs mt-1 text-zinc-400 dark:text-zinc-500">
+                Press escape to cancel
+              </span>
+            </Form>
+          )}
         </div>
       </div>
-      {canDeleteMessage && (
-        <div className="hidden group-hover:flex items-center gap-x-2 absolute p-1 -top-2 right-5 bg-white dark:bg-zinc-800 border rounded-sm">
+      {canDeleteMessage && isHovered && (
+        <div className="flex items-center gap-x-2 absolute p-1 -top-2 right-5 bg-white dark:bg-zinc-800 border rounded-sm">
           {canEditMessage && (
             <ActionTooltip label="Edit">
-              <Edit className="cursor-pointer ml-auto w-4 h-4 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition" />
+              <Edit
+                onClick={() => setIsEditing(true)}
+                className="cursor-pointer ml-auto w-5 h-5 text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 transition"
+              />
             </ActionTooltip>
           )}
+          <ActionTooltip label="Delete">
+            <Trash2
+              onClick={onDelete}
+              className="cursor-pointer ml-auto w-5 h-5 text-zinc-500 hover:text-rose-600 dark:hover:text-rose-400 transition"
+            />
+          </ActionTooltip>
         </div>
       )}
     </div>

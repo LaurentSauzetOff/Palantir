@@ -11,21 +11,26 @@ import { Plus } from "lucide-react";
 import { useModal } from "@/hooks/use-modal-store";
 import { EmojiPicker } from "@/components/emoji-picker";
 import { useRouter } from "next/navigation";
+import { useRef } from "react";
+import { useSocket } from "@/components/providers/socket-provider";
 
 interface ChatInputProps {
   apiUrl: string;
   query: Record<string, string | number | boolean | undefined>;
   name: string;
   type: "conversation" | "channel";
+  memberName?: string;
 }
 
 const formSchema = z.object({
   content: z.string().min(1),
 });
 
-export const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
+export const ChatInput = ({ apiUrl, query, name, type, memberName }: ChatInputProps) => {
   const { onOpen } = useModal();
   const router = useRouter();
+  const { socket } = useSocket();
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     defaultValues: {
@@ -38,6 +43,12 @@ export const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      // Arrêter l'indicateur de frappe à l'envoi
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+      if (socket && query.channelId) {
+        socket.emit("stop-typing", { channelId: query.channelId, memberId: memberName });
+      }
+
       const url = qs.stringifyUrl({
         url: apiUrl,
         query,
@@ -78,6 +89,20 @@ export const ChatInput = ({ apiUrl, query, name, type }: ChatInputProps) => {
                       disabled={isLoading}
                       placeholder={`Message ${type === "conversation" ? name : "#" + name}`}
                       className="h-12 border-none border-0 px-14 py-0 bg-zinc-200/90 dark:bg-zinc-700/75 text-zinc-600 dark:text-zinc-200 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      onChange={(e) => {
+                        field.onChange(e);
+                        if (socket && query.channelId && memberName) {
+                          socket.emit("typing", {
+                            channelId: query.channelId,
+                            name: memberName,
+                            memberId: memberName,
+                          });
+                          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+                          typingTimeoutRef.current = setTimeout(() => {
+                            socket.emit("stop-typing", { channelId: query.channelId, memberId: memberName });
+                          }, 2500);
+                        }
+                      }}
                     />
 
                     <div className="absolute inset-y-0 right-4 my-auto flex items-center z-10">

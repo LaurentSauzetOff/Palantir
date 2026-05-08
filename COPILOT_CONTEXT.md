@@ -548,5 +548,52 @@ console.error("[CREATE_SERVER_MODAL]", error); // copy-paste depuis create-serve
 
 Le champ `type` contient deux `<FormControl>` imbriqués : un autour du `<Select>` et un autour du `<SelectTrigger>`. shadcn/ui n'en attend qu'un seul par `<FormField>`. Supprimer le `<FormControl>` interne (celui autour de `<SelectTrigger>`).
 
+---
+
+### Mise à jour branche `feat/emojis-bar` (8 mai 2026)
+
+#### Contexte
+Extension du composant d'upload fichiers + implémentation du picker d'emoji dans le chat. L'incompatibilité de `@emoji-mart/react` avec React 19 a imposé une approche DOM impérative.
+
+#### Fichiers modifiés
+
+- **`app/api/uploadthing/core.ts`** : route `messageFile` étendue pour accepter images (PNG/JPEG/WebP/GIF), vidéos (MP4/WebM), audio (clé générique `audio`), archives (ZIP/RAR), PDF et texte. Les tailles respectent les paliers valides Uploadthing (puissances de 2 : `"8MB"`, `"16MB"`, `"32MB"`).
+
+- **`components/file-upload.tsx`** : entièrement réécrit pour supporter tous les types de médias.
+  - `EXTENSION_BADGES` : badges colorés par famille (bleu=images, violet=vidéo, emerald=audio, rose=archives, ambre=PDF, zinc=TXT) avec curseurs hover distincts.
+  - `generateVideoThumbnail(file)` : capture à 10% de la durée via Canvas (JPEG 70%).
+  - Preview blob pour images + thumbnail canvas pour vidéos ; state `uploadedFileType` ("image" | "video" | "other" | null).
+  - Bouton "Choose a file" masqué en double couche (`content.button: () => null` + `appearance.button: "hidden !m-0 !p-0 !h-0 !w-0"`).
+  - Détection basée sur `endpoint` (pas l'extension d'URL) pour décider du rendu post-upload.
+
+#### Nouveaux composants créés
+
+- **`components/emoji-picker.tsx`** : picker d'emoji compatible React 19.
+  - `@emoji-mart/react` incompatible React 19 → non installé. Seules les dépendances `emoji-mart` + `@emoji-mart/data` sont utilisées.
+  - Intégration via l'API DOM impérative : `new Picker({data, theme, onEmojiSelect})` monté dans un `div` via `useRef` + `appendChild`.
+  - Panneau local absolu (pas de Popover Radix — 3 tentatives infructueuses : submit de form, effet avant montage, comportement instable avec rendu impératif).
+  - Fermeture au clic extérieur via `containerRef` + listener `mousedown` sur `document`.
+  - Theme adaptatif via `useTheme()` de `next-themes`.
+
+- **`components/chat/chat-input.tsx`** (modifié) : intégration d'`EmojiPicker` dans le div de droite du champ de saisie. `onChange` insère l'emoji à la fin du champ courant.
+
+#### Points techniques notés
+
+- `"audio/wav"` et `"audio/mp3"` ne sont pas des clés valides dans Uploadthing v7 → clé générique `audio` utilisée.
+- `"10MB"` invalide → corrigé en `"8MB"`.
+- Picker emoji monté uniquement quand `open === true` (pas de montage à froid).
+
+#### Décision d'architecture future — GifPicker Giphy
+
+**Décision prise** : le support des GIFs Giphy sera ajouté via un **second bouton indépendant** dans `chat-input.tsx`, à côté du bouton EmojiPicker. Ce sera un composant `GifPicker` séparé (pas d'onglets dans EmojiPicker).
+
+**Points d'implémentation à prévoir** :
+- `GifPicker` : composant React client avec son propre panneau local absolu (même pattern qu'`EmojiPicker`).
+- **Fermeture mutuelle** : éviter que les deux panneaux soient ouverts simultanément. Solution retenue : un state `openPicker: "emoji" | "gif" | null` dans `chat-input.tsx`, passé en props (`isOpen` + `onClose`) à chaque composant.
+- **Clé API Giphy** : à stocker en variable d'environnement côté serveur uniquement. Les requêtes Giphy doivent passer par une **route API Next.js proxy** (`/api/giphy/search` ou similaire) — jamais exposer la clé côté client.
+- Lib candidate : `@giphy/react-components` ou intégration manuelle via l'API Giphy REST.
+
+---
+
 ### Engagement fin de tutoriel
 À la fin du tutoriel, une **phase de tests complète** sera systématiquement menée (unitaires, intégration, e2e, accessibilité et non-régression) avant passage en branche suivante.

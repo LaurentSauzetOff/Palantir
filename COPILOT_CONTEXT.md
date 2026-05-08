@@ -595,5 +595,46 @@ Extension du composant d'upload fichiers + implémentation du picker d'emoji dan
 
 ---
 
+### Mise à jour branche `feat/chat-messages-component` (8 mai 2026)
+
+#### Contexte
+Mise en place du socle de lecture des messages côté client avec pagination curseur (infinite query), et ajout de la route `GET /api/messages` côté serveur pour alimenter le flux.
+
+#### Nouveaux composants / hooks
+
+- **`components/providers/query-provider.tsx`** : provider React Query avec `QueryClientProvider` et instance stable (`useState(() => new QueryClient())`).
+- **`hooks/use-chat-query.ts`** : hook de récupération paginée via `useInfiniteQuery`.
+	- Construction de l'URL avec `query-string` (`cursor` + `paramKey` dynamique).
+	- `getNextPageParam` basé sur `nextCursor` renvoyé par l'API.
+	- `refetchInterval` conditionnel : `false` si socket connectée, `1000ms` sinon.
+	- `initialPageParam` explicite pour compatibilité TanStack Query v5.
+- **`components/chat/chat-welcome.tsx`** : bloc de bienvenue channel/conversation (empty state visuel).
+- **`components/chat/chat-messages.tsx`** : composant de rendu du flux.
+	- États de chargement/erreur (`Loader2`, `ServerCrash`).
+	- Correction v5 : `status === "pending"` (et non `"loading"`).
+	- Rendu des pages en ordre inversé (`flex-col-reverse`) + `ChatWelcome`.
+
+#### Fichiers modifiés
+
+- **`app/layout.tsx`** : insertion de `QueryProvider` dans l'arbre applicatif (autour des composants qui consomment React Query).
+- **`app/(main)/(routes)/servers/[serverId]/channels/[channelId]/page.tsx`** : remplacement du placeholder "Future messages" par `ChatMessages` avec props complètes (`chatId`, `apiUrl`, `socketUrl`, `socketQuery`, `paramKey`, `paramValue`).
+- **`app/api/messages/route.ts`** : ajout du handler `GET` en plus de `POST`.
+	- Auth via `getCurrentProfile()`.
+	- Validation de `channelId`.
+	- Pagination curseur avec batch fixe (`MESSAGES_BATCH = 10`), tri `createdAt desc`.
+	- Inclusion `member.profile` pour le rendu client.
+	- Réponse standardisée `{ items, nextCursor }`.
+
+#### Dépendances
+
+- **`package.json` / `package-lock.json`** : ajout de `@tanstack/react-query`.
+
+#### Points de vigilance
+
+- Une entrée parasite `"root": "github:tanstack/react-query"` a été observée dans `package.json` durant l'installation. Cette clé n'est pas nécessaire pour le projet et doit être supprimée si encore présente avant merge.
+- `ChatMessages` contient encore des props prévues pour la phase suivante (socket live updates / observer d'infinite scroll), ce qui peut générer des warnings lint temporaires de variables non utilisées tant que le chapitre n'est pas finalisé.
+
+---
+
 ### Engagement fin de tutoriel
 À la fin du tutoriel, une **phase de tests complète** sera systématiquement menée (unitaires, intégration, e2e, accessibilité et non-régression) avant passage en branche suivante.

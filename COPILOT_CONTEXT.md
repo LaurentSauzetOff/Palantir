@@ -518,6 +518,12 @@ Ces trois cas ont été analysés lors de la mise en place de Socket.io. Ils son
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.
 
+### Optimisation vidéo chat (pistes ajoutées le 8 mai 2026)
+
+- Générer les vidéos en **H.264 (MP4)** côté upload pour maximiser la compatibilité des navigateurs et limiter les coûts de transcodage ultérieurs.
+- Mettre en place un streaming adaptatif **HLS multi-bitrate** pour ajuster dynamiquement la qualité selon le réseau (meilleur compromis qualité/fluidité/bande passante).
+- Générer et servir une image **poster (thumbnail)** pour chaque vidéo afin d'éviter le décodage d'une frame vidéo au scroll et réduire la charge initiale côté client/serveur.
+
 #### `app/api/channels/route.ts` — handlers `DELETE` et `PATCH` mal placés
 
 `app/api/channels/route.ts` contient actuellement des handlers `DELETE` et `PATCH` qui déclarent un paramètre `params: Promise<{ channelId: string }>`, mais ce fichier est une route statique (aucun segment dynamique dans le chemin). Next.js ne peut jamais injecter `channelId` ici, et TypeScript le signale (erreur `TS2344` au niveau du validateur `.next/dev/types/validator.ts`).

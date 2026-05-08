@@ -243,7 +243,11 @@ export const FileUpload = ({ endpoint, value, onChange }: FileUploadProps) => {
         onBeforeUploadBegin={handleBeforeUpload}
         onClientUploadComplete={(res) => {
           revokePreview();
-          if (onChange) onChange(res?.[0]?.ufsUrl);
+          if (onChange) {
+            const url = res?.[0]?.ufsUrl;
+            const name = res?.[0]?.name;
+            onChange(url && name ? `${url}?ut_name=${encodeURIComponent(name)}` : url);
+          }
         }}
         onUploadError={(error: Error) => {
           revokePreview();
@@ -263,11 +267,7 @@ export const FileUpload = ({ endpoint, value, onChange }: FileUploadProps) => {
               ))}
             </div>
           ),
-          button: () => null,
-        }}
-        appearance={{
-          // Double sécurité pour masquer le bouton natif Uploadthing.
-          button: "hidden !m-0 !p-0 !h-0 !w-0",
+          button: "Choose a file",
         }}
       />
     </div>

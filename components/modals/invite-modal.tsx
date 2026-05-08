@@ -27,6 +27,12 @@ export const InviteModal = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const inviteUrl = `${origin}/invite/${server?.inviteCode}`;
+  const expiresAt = server?.inviteCodeExpiresAt
+    ? new Date(server.inviteCodeExpiresAt)
+    : null;
+  const expiresInMinutes = expiresAt
+    ? Math.max(0, Math.ceil((expiresAt.getTime() - Date.now()) / 60000))
+    : null;
 
   const onCopy = () => {
     navigator.clipboard.writeText(inviteUrl);
@@ -58,6 +64,13 @@ export const InviteModal = () => {
           <Label className="uppercase text-xs font-bold text-zinc-500 dark:text-secondary/70">
             Server invite link
           </Label>
+          <p className="mt-1 text-xs text-zinc-500">
+            {expiresInMinutes !== null
+              ? expiresInMinutes > 0
+                ? `Expire dans ${expiresInMinutes} minute${expiresInMinutes > 1 ? "s" : ""}`
+                : "Lien expiré"
+              : "Expiration inconnue"}
+          </p>
           <div className="flex items-center mt-2 gap-x-2">
             <Input
             disabled={isLoading}

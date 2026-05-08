@@ -18,6 +18,16 @@ app.prepare().then(() => {
 
   io.on("connection", (socket) => {
     console.log(`[Socket.IO] Client connecté : ${socket.id}`);
+
+    // Relayer les événements de frappe entre clients d'un même canal
+    socket.on("typing", ({ channelId, name, memberId }) => {
+      socket.broadcast.emit(`chat:${channelId}:typing`, { name, memberId });
+    });
+
+    socket.on("stop-typing", ({ channelId, memberId }) => {
+      socket.broadcast.emit(`chat:${channelId}:stop-typing`, { memberId });
+    });
+
     socket.on("disconnect", () => {
       console.log(`[Socket.IO] Client déconnecté : ${socket.id}`);
     });

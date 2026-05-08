@@ -451,6 +451,217 @@ Points déjà traités pendant ce chapitre (ne plus considérer comme dettes ouv
 
 ---
 
+## Audit UI/UX — état au 8 mai 2026
+
+### 🔴 Accessibilité — critiques
+
+#### 1. Focus ring désactivé (navigation clavier cassée)
+Plusieurs inputs désactivent délibérément le focus visible :
+- `components/chat/chat-input.tsx` — `focus-visible:ring-0` sur l'input de message
+- `components/modals/edit-channel-modal.tsx` — `focus-visible:ring-0` sur l'input et `focus:ring-0` sur le select
+- `components/modals/invite-modal.tsx` — `focus-visible:ring-0` sur l'input du lien
+
+**Fix post-tuto :** remplacer par `focus-visible:ring-2 focus-visible:ring-ring`.
+
+#### 2. Boutons Edit/Delete invisibles sur mobile
+`components/server/server-channel.tsx` — les boutons Edit/Delete utilisent `md:opacity-0 md:group-hover:opacity-100`. Sur mobile (< 768px), ils sont masqués par défaut et le hover ne se déclenche jamais au touch.
+
+#### 3. Labels d'inputs non reliés
+`components/modals/invite-modal.tsx` — le `<Label>` et l'`<Input>` du lien d'invitation ne sont pas reliés (`htmlFor`/`id` manquants). Les lecteurs d'écran ne les associent pas.
+
+#### 4. Aria-labels manquants
+- Bouton delete dans `file-upload.tsx` (`<X />` sans `aria-label`)
+- Bouton de téléchargement dans `chat-item.tsx` (`<DownloadIcon />` sans `aria-label`)
+- Actions kick/changement de rôle dans `members-modal.tsx`
+
+#### 5. Contraste insuffisant en dark mode
+`components/navigation/navigation-sidebar.tsx` — `text-zinc-500` sur `#1E1F22` donne un ratio ≈ 3.5:1 (WCAG AA requiert 4.5:1).
+
+---
+
+### 🟠 Responsive — majeurs
+
+#### 6. Images chat non adaptatives
+`components/chat/chat-item.tsx` — `h-48 w-48` fixe. Sur écrans < 320px, débordement horizontal possible.
+**Fix :** `h-48 w-48 max-h-[80vw] max-w-[80vw]`.
+
+#### 7. Valeurs Tailwind non standards
+- `components/chat/chat-welcome.tsx` — `h-18.75 w-18.75` (hors échelle Tailwind)
+- `components/chat/chat-item.tsx` — `max-w-140` (Tailwind s'arrête à 96)
+
+#### 8. Modales qui débordent sur très petits écrans
+Les `DialogContent` ont un `max-w-sm` (384px) sans responsive inférieur. Sur écrans < 320px, débordement horizontal.
+
+---
+
+### 🟠 États manquants
+
+#### 9. Aucun spinner sur les boutons en chargement
+`components/modals/invite-modal.tsx` — le bouton "Generate a new link" est `disabled={isLoading}` mais sans indicateur visuel. L'utilisateur ne sait pas si l'action est en cours.
+
+#### 10. Échecs silencieux à l'upload
+`components/file-upload.tsx` — `onUploadError` fait uniquement `console.error`. L'utilisateur ne voit rien quand un upload échoue.
+
+#### 11. Erreurs silencieuses dans les modales
+`components/modals/edit-channel-modal.tsx`, `delete-channel-modal.tsx`, `create-channel-modal.tsx` — les `catch` loggent en console sans feedback visuel.
+
+---
+
+### 🔵 Cohérence visuelle
+
+#### 12. Mélange FR/EN systématique 🚨
+L'application mélange les deux langues sans cohérence :
+
+| Composant | Texte anglais | Texte français |
+|---|---|---|
+| `invite-modal.tsx` | "Server invite link" | — |
+| `chat-item.tsx` | "PDF File" | "Telecharger le fichier" |
+| `chat-messages.tsx` | "Loading messages..." | — |
+| `mobile-toggle.tsx` | "Open server navigation" | — |
+| `emoji-picker.tsx` | — | "Ouvrir le sélecteur d'emoji" |
+
+**Action post-tuto :** standardiser sur le français pour toute l'interface.
+
+#### 13. Couleurs hexadécimales hardcodées
+- `app/layout.tsx` — `dark:bg-[#313338]`
+- `components/navigation/navigation-sidebar.tsx` — `dark:bg-[#1E1F22]`, `bg-[#E3E5E8]`
+
+Impossible de changer le thème sans refactoring du code. Utiliser des variables CSS ou des tokens Tailwind sémantiques.
+
+#### 14. Modales en fond blanc qui ignorent le dark mode
+`create-server-modal.tsx`, `invite-modal.tsx`, `edit-channel-modal.tsx`, `members-modal.tsx` — tous utilisent `bg-white text-black`, ce qui casse la cohérence en dark mode.
+**Fix :** utiliser `bg-card text-card-foreground` (tokens shadcn/ui).
+
+---
+
+### 🟡 UX — interactions & feedback
+
+#### 15. Actions contextuelles inaccessibles au touch
+`components/chat/chat-item.tsx` — les boutons Edit/Delete sont dans un `div` avec `hidden group-hover:flex`. Sur mobile, le hover ne se déclenche jamais → impossibilité d'éditer ou supprimer ses messages.
+
+#### 16. Fausse affordance sur le nom d'auteur
+`components/chat/chat-item.tsx` — le `<p>` du nom de membre a `hover:underline cursor-pointer` (apparence d'un lien) mais aucune action associée au clic.
+
+#### 17. Validation de formulaire silencieuse
+Dans `create-server-modal.tsx`, `create-channel-modal.tsx` — les erreurs Zod/RHF ne s'affichent pas via `<FormMessage />`. L'utilisateur soumet, rien ne se passe, sans explication.
+
+---
+
+### Actions prioritaires UI/UX (post-tuto)
+
+| Priorité | Action | Fichier(s) |
+|---|---|---|
+| P0 | Rétablir focus rings | `chat-input.tsx`, `edit-channel-modal.tsx`, `invite-modal.tsx` |
+| P0 | Rendre Edit/Delete accessibles au touch | `chat-item.tsx`, `server-channel.tsx` |
+| P1 | Associer labels et inputs (`htmlFor`/`id`) | `invite-modal.tsx` et toutes modales |
+| P1 | Ajouter aria-labels sur les boutons icon-only | `file-upload.tsx`, `chat-item.tsx`, `members-modal.tsx` |
+| P1 | Ajouter feedback d'erreur (toast) sur uploads et actions modales | `file-upload.tsx`, modales |
+| P1 | Standardiser la langue sur le français | tous les composants |
+| P2 | Remplacer couleurs hex par variables CSS/tokens | `layout.tsx`, `navigation-sidebar.tsx` |
+| P2 | Corriger les tailles Tailwind non standards | `chat-welcome.tsx`, `chat-item.tsx` |
+| P2 | Afficher `<FormMessage />` dans tous les formulaires | toutes modales |
+| P2 | Appliquer `bg-card text-card-foreground` aux modales | toutes modales |
+
+---
+
+## Audit expérience utilisateur — état au 8 mai 2026
+
+### 🔴 Flux utilisateur — critiques
+
+#### 1. Page d'invitation → écran blanc sur code invalide
+`app/(invite)/(routes)/invite/[inviteCode]/page.tsx` — si le code d'invitation n'existe pas (serveur supprimé, code expiré), `prisma.server.update` lève une exception, le `catch` n'est pas présent, et la page retourne `null` → écran entièrement blanc sans message.
+**Fix :** encapsuler dans un try/catch et rediriger vers `/` avec un message d'erreur.
+
+#### 2. Double navigation après création de serveur
+`components/modals/initial-modal.tsx` — après la soumission, le code fait `router.refresh()` suivi immédiatement de `window.location.reload()`. Sur réseau lent, c'est une race condition : l'utilisateur peut rester bloqué sur `/setup` si le refresh Next.js et le reload entrent en conflit.
+**Fix :** remplacer les deux par `router.push(\`/servers/${server.id}\`)`.
+
+#### 3. Modérateurs ne peuvent pas expulser de membres
+`app/api/members/[memberId]/route.ts` — `DELETE` et `PATCH` filtrent avec `where: { id: serverId, profileId: profile.id }`, ce qui restreint l'opération au **propriétaire du serveur uniquement**. Les modérateurs voient les boutons d'action dans la modale membres mais les appels API échouent silencieusement (500 ou données inchangées).
+**Fix post-tuto :** étendre l'autorisation aux MODERATOR pour `DELETE` ; garder ADMIN uniquement pour `PATCH role`.
+
+---
+
+### 🟠 Feedback et récupération d'erreur
+
+#### 4. `sonner` installé mais jamais utilisé
+`components/ui/sonner.tsx` est présent dans le projet, mais aucune modale ni action n'appelle `toast()`. Toutes les erreurs vont en `console.log/error`, tous les succès sont silencieux côté UI.
+
+Cas concrets d'échecs silencieux :
+- Création de serveur échouée → rien (`create-server-modal.tsx`)
+- Regénération du lien d'invitation échouée → rien (`invite-modal.tsx`)
+- Kick/changement de rôle échoué → rien (`members-modal.tsx`)
+- Upload de fichier échoué → rien (`file-upload.tsx`)
+
+**Action post-tuto :** brancher `toast.success()` / `toast.error()` dans tous les `catch` et après les actions critiques.
+
+#### 5. Aucun retry possible après une erreur API
+Quand un appel axios échoue dans une modale, le bouton reste dans son état précédent (ou `isLoading` reste bloqué), sans message et sans bouton "Réessayer". L'utilisateur doit fermer et rouvrir la modale.
+
+#### 6. Pas de confirmation avant les actions destructives
+`components/modals/members-modal.tsx` — un clic sur "Kick" expulse immédiatement le membre sans dialog de confirmation. Même chose pour le changement de rôle.
+**Fix post-tuto :** `<AlertDialog>` de confirmation ("Êtes-vous sûr d'expulser X ?") avant les actions irréversibles.
+
+---
+
+### 🟠 Discoverabilité et permissions
+
+#### 7. Actions masquées sans explication de permission
+Un GUEST ne voit pas les boutons de modération — c'est correct — mais si par curiosité il cherche comment créer un canal ou inviter des gens, rien ne lui explique pourquoi ces options sont absentes. Aucun tooltip contextuel, aucun message "Seuls les admins peuvent faire ceci."
+
+#### 8. Boutons icon-only sans tooltip
+- Boutons Edit/Delete dans `server-channel.tsx`
+- Bouton "+" (create channel) dans `server-section.tsx`
+- Bouton download image dans `chat-item.tsx`
+- Actions de rôle dans `members-modal.tsx`
+
+Le composant `ActionTooltip` existe déjà et est utilisé ailleurs. Ces boutons auraient dû l'utiliser.
+
+---
+
+### 🟠 Continuité de session
+
+#### 9. Socket non déconnectée au logout Clerk
+`components/providers/socket-provider.tsx` ne réagit pas à l'événement de déconnexion Clerk. Si un utilisateur se déconnecte puis se reconnecte avec un autre compte, l'ancienne connexion socket peut persister temporairement → messages reçus sur le mauvais compte.
+
+#### 10. Formulaires réinitialisés à la fermeture des modales
+Comportement actuel : fermer une modale en cours de saisie (croix ou clic extérieur) réinitialise le formulaire sans avertissement. L'utilisateur perd ce qu'il avait commencé à taper.
+Ce comportement est discutable — sur Discord, la saisie persiste. À décider lors de la phase post-tuto.
+
+---
+
+### 🟡 Cas limites non gérés
+
+#### 11. Serveur sans canal — état vide non communiqué
+Si tous les canaux sont supprimés, la sidebar affiche les headers de section ("Text Channels") mais vides, sans message "Aucun canal. Créez-en un !". L'utilisateur ne sait pas si c'est normal ou cassé.
+
+#### 12. Canal sans messages — welcome seul, pas de guidage
+`components/chat/chat-welcome.tsx` s'affiche quand il n'y a pas de messages, mais sans invitation explicite à envoyer le premier message (flèche vers l'input, texte d'appel à l'action).
+
+#### 13. Upload annulé : état de prévisualisation figé
+`components/file-upload.tsx` — si l'utilisateur annule un upload en cours (fermeture du navigateur, navigation), la prévisualisation blob reste affichée sans signal d'échec.
+
+#### 14. Pagination de la liste des membres absente
+`components/modals/members-modal.tsx` — tous les membres sont rendus en une seule liste `.map()` sans virtualisation ni pagination. Sur un serveur de 200+ membres, le rendu initial est bloquant.
+
+---
+
+### Actions prioritaires UX (post-tuto)
+
+| Priorité | Action | Fichier(s) |
+|---|---|---|
+| P0 | Gérer le cas `null` sur la page invitation | `app/(invite)/(routes)/invite/[inviteCode]/page.tsx` |
+| P0 | Remplacer double navigation par `router.push()` | `components/modals/initial-modal.tsx` |
+| P1 | Brancher `toast.success()` / `toast.error()` partout | toutes les modales, `file-upload.tsx` |
+| P1 | Ajouter confirmation `<AlertDialog>` avant kick/suppression | `members-modal.tsx`, `delete-server-modal.tsx`, `delete-channel-modal.tsx` |
+| P1 | Ajouter `ActionTooltip` sur tous les boutons icon-only | `server-channel.tsx`, `server-section.tsx`, `chat-item.tsx`, `members-modal.tsx` |
+| P1 | Étendre autorisation membres (MODERATOR peut kick) | `app/api/members/[memberId]/route.ts` |
+| P2 | Déconnecter socket au logout Clerk | `components/providers/socket-provider.tsx` |
+| P2 | Empty states pour sidebar sans canal et canal sans messages | `server-sidebar.tsx`, `chat-welcome.tsx` |
+| P2 | Paginer ou virtualiser la liste membres | `members-modal.tsx` |
+
+---
+
 ## Scénarios de panne à tester en fin de tuto
 
 Ces trois cas ont été analysés lors de la mise en place de Socket.io. Ils sont volontairement non implémentés pour l'instant et seront mis à l'épreuve une fois le tutoriel terminé dans son intégralité.
@@ -517,6 +728,12 @@ Ces trois cas ont été analysés lors de la mise en place de Socket.io. Ils son
 
 ### Dette technique cumulée pendant le tuto
 Chaque dette identifiée en cours de route est documentée ici et sera traitée lors de cette phase.
+
+### Optimisation vidéo chat (pistes ajoutées le 8 mai 2026)
+
+- Générer les vidéos en **H.264 (MP4)** côté upload pour maximiser la compatibilité des navigateurs et limiter les coûts de transcodage ultérieurs.
+- Mettre en place un streaming adaptatif **HLS multi-bitrate** pour ajuster dynamiquement la qualité selon le réseau (meilleur compromis qualité/fluidité/bande passante).
+- Générer et servir une image **poster (thumbnail)** pour chaque vidéo afin d'éviter le décodage d'une frame vidéo au scroll et réduire la charge initiale côté client/serveur.
 
 #### `app/api/channels/route.ts` — handlers `DELETE` et `PATCH` mal placés
 
@@ -638,3 +855,164 @@ Mise en place du socle de lecture des messages côté client avec pagination cur
 
 ### Engagement fin de tutoriel
 À la fin du tutoriel, une **phase de tests complète** sera systématiquement menée (unitaires, intégration, e2e, accessibilité et non-régression) avant passage en branche suivante.
+
+---
+
+## Audit qualité & modernité — état au 8 mai 2026
+
+Score global estimé : **6.75 / 10**
+
+### ✅ Points forts confirmés
+
+- **Next.js 16 App Router** bien adopté : `params: Promise<{}>`, Server Components, `revalidatePath()` après mutations.
+- **TypeScript strict** activé (`"strict": true` dans `tsconfig.json`).
+- **ESLint v9 FlatConfig** (`eslint.config.mjs`) — format moderne.
+- **Prisma + Neon adapter** — setup serverless correct via `@prisma/adapter-neon`.
+- **Zod** sur toutes les routes API existantes.
+- **Zustand** pour le store modal — léger et approprié.
+- **TanStack Query v5** bien configuré (pagination curseur, `initialPageParam`, status `"pending"` v5).
+- **Tests Vitest + Playwright** présents et configurés.
+- **Uploadthing v7** correctement intégré (FileRouter typé, limites explicites).
+
+---
+
+### 🔴 Bloquants avant production
+
+#### 1. Socket.io incompatible serverless
+**Fichier** : `server.js` + `lib/socket-io.ts`
+`globalThis.__socketio` n'est pas partagé entre les Lambdas Vercel. L'émission temps réel depuis les routes API (`getIo()`) ne fonctionnera jamais en prod. Les messages n'arrivent que via le fallback polling (1 s).
+**Fix requis** : Redis adapter Socket.io ou HTTP relay dédié.
+
+#### 2. Routes PATCH/DELETE messages absentes
+Les boutons éditer/supprimer prévus dans `chat-item.tsx` (WIP) n'ont pas de routes API cibles. À implémenter.
+
+#### 3. Memory leak Canvas dans FileUpload
+`components/file-upload.tsx` — si une vidéo est corrompue, la Promise de génération de thumbnail ne se résout jamais et les event listeners (`loadedmetadata`, `seeked`) ne sont pas nettoyés.
+
+---
+
+### 🟠 Important (avant shipping)
+
+#### 4. `imageURL` vs `imageUrl` — nommage incohérent
+`prisma/schema.prisma` utilise `imageURL` (PascalCase), tout le code TypeScript utilise `imageUrl`. Fonctionnel mais source de confusion. À harmoniser via migration Prisma.
+
+#### 5. TypeScript target ES2017 obsolète
+`tsconfig.json` — à passer a minima à `"ES2020"` (support async/await optimisé, compatibilité Next.js 16).
+
+#### 6. Error handling générique dans les routes API
+Tous les `catch` font `console.log` + `"Internal error"` sans distinguer les erreurs Zod / Prisma / inconnues. À standardiser avec codes HTTP explicites (400/404/500).
+
+#### 7. Race condition dans MembersModal
+`router.refresh()` suivi immédiatement de `onOpen("members", { server: response.data })` : l'utilisateur voit brièvement l'ancienne liste. Migrer vers mutation TanStack Query.
+
+#### 8. Pas de rate limiting sur `POST /api/servers`
+Un utilisateur malveillant peut créer des milliers de serveurs sans limite. À ajouter via middleware ou librairie dédiée.
+
+---
+
+### 🟡 Mineurs / style
+
+#### 9. Fragment importé depuis `react/jsx-runtime` (API interne)
+`components/chat/chat-messages.tsx` — importer `Fragment` depuis `"react"` à la place.
+
+#### 10. `useSyncExternalStore` utilisé comme hack SSR
+`hooks/use-origin.ts` et `components/providers/modal-provider.tsx` utilisent ce hook pour détecter le montage côté client, alors que `useState` + `useEffect` est plus lisible et suffisant.
+
+#### 11. Couleurs hex hardcodées dans la sidebar
+`components/server/server-sidebar.tsx` — `dark:bg-[#2B2D31]` etc. À remplacer par des variables CSS/Tailwind pour une thématisation cohérente.
+
+#### 12. Pas de `.env.example` dans le repo
+Aucun fichier de référence pour les variables d'environnement. À créer pour faciliter l'onboarding.
+
+#### 13. Socket.io client sans stratégie de reconnexion explicite
+`app/socket.ts` — pas de `reconnectionDelayMax`, pas d'`auth` Clerk. À configurer avant production.
+
+#### 14. Cursor pagination — vérifier comportement `skip: 1`
+`app/api/messages/route.ts` — `skip: 1` avec `cursor` est le comportement attendu pour exclure le curseur lui-même (correct en Prisma v5+), mais à valider manuellement si des messages sont manquants ou dupliqués.
+
+---
+
+### Actions prioritaires (ordre de traitement post-tuto)
+
+| Priorité | Action | Fichier(s) |
+|---|---|---|
+| P0 | Reconfigurer Socket.io pour serverless (Redis adapter) | `server.js`, `lib/socket-io.ts` |
+| P0 | Implémenter PATCH/DELETE `/api/messages/[messageId]` | à créer |
+| P0 | Corriger memory leak Canvas | `components/file-upload.tsx` |
+| P1 | Harmoniser `imageURL` → `imageUrl` | `prisma/schema.prisma` + migrations |
+| P1 | Passer TypeScript target à ES2020 | `tsconfig.json` |
+| P1 | Standardiser error handling dans les routes API | tous `app/api/*/route.ts` |
+| P2 | Ajouter rate limiting sur POST routes sensibles | middleware ou lib |
+| P2 | Corriger import Fragment | `components/chat/chat-messages.tsx` |
+| P2 | Créer `.env.example` | racine projet |
+
+---
+
+## Mise à jour session dev — 8 mai 2026 (soir)
+
+### Chat messages — édition/suppression et synchro live
+
+- Route créée **`app/api/messages/[messageId]/route.ts`** avec:
+  - `PATCH` (édition message texte, auteur uniquement)
+  - `DELETE` (soft delete, auteur/admin/modérateur)
+  - émission socket `chat:{channelId}:messages:update`
+- **`components/chat/chat-item.tsx`** branché sur ces routes (`axios.patch` / `axios.delete`).
+- Taille des icônes Edit/Delete augmentée (`w-5 h-5`).
+- Hover actions stabilisées via état React `isHovered` (au lieu de dépendre uniquement du `group-hover`).
+
+### Chat live updates + scroll + typing indicator
+
+- Nouveau hook **`hooks/use-chat-socket.ts`** : patch du cache React Query sur événements socket add/update.
+- **`components/chat/chat-messages.tsx`** branché sur `useChatSocket`.
+- Nouveau hook **`hooks/use-chat-scroll.ts`** :
+  - auto-scroll initial vers le bas,
+  - auto-scroll sur nouveaux messages si l'utilisateur est proche du bas,
+  - chargement pagination quand scroll en haut.
+- Nouveau hook **`hooks/use-chat-typing.ts`** + composant **`components/chat/chat-typing-indicator.tsx`**.
+- **`components/chat/chat-input.tsx`** émet `typing` / `stop-typing` avec debounce.
+- **`server.js`** relaye les événements de frappe (`typing`, `stop-typing`).
+
+### Sidebar members — temps réel join/leave/kick/role
+
+- Nouveau composant client **`components/server/server-sidebar-realtime.tsx`** qui écoute `server:{serverId}:members:update` puis `router.refresh()`.
+- Branché dans **`components/server/server-sidebar.tsx`**.
+- Émission socket ajoutée dans:
+  - **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`** (join via lien)
+  - **`app/api/members/[memberId]/route.ts`** (kick + role update)
+  - **`app/api/servers/[serverId]/leave/route.ts`** (leave)
+
+### Flux d'invitation — robustesse auth et UX
+
+- **`proxy.ts`** : ajout `redirect_url` dans redirection non-auth vers `/sign-in` pour reprendre correctement le lien d'invite après login.
+- **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`** :
+  - usage de `initialProfile()` (création auto du profil Prisma si compte Clerk nouveau),
+  - écran explicite "lien invalide/expiré" au lieu de redirection silencieuse.
+
+### Setup page — déconnexion
+
+- Bouton de déconnexion rendu directement dans **`components/modals/initial-modal.tsx`** via `SignOutButton` Clerk (focus trap de la modal oblige).
+
+### Expiration des liens d'invitation (30 min)
+
+- Schéma Prisma mis à jour: `Server.inviteCodeExpiresAt DateTime?`.
+- Écriture de l'expiration à 30 min dans:
+  - **`app/api/servers/route.ts`** (création serveur)
+  - **`app/api/servers/[serverId]/invite-code/route.ts`** (régénération)
+- Validation de l'expiration dans **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`**.
+- **`components/modals/invite-modal.tsx`** affiche la durée restante (`Expire dans X minutes`).
+
+### Blocage infra Prisma/Neon (à reprendre demain)
+
+- `prisma.config.ts` corrigé pour utiliser `DIRECT_URL` en priorité (`DIRECT_URL || DATABASE_URL`).
+- `npx prisma migrate dev --name invite-link-expiration-30min` échoue encore en local avec `P1001` (endpoint Neon non joignable de manière stable depuis l'environnement actuel).
+- `npx prisma generate` : OK.
+- `psql` non installé localement (`psql-not-found`), donc pas de contournement SQL direct possible aujourd'hui.
+- **Décision** : finaliser la migration DB demain quand la connectivité Neon sera stable.
+
+### Fallbacks temporaires ajoutés (tant que migration non appliquée)
+
+- Fallbacks `try/catch` ajoutés pour ne pas casser l'app si la colonne `inviteCodeExpiresAt` n'existe pas encore:
+  - **`app/api/servers/route.ts`**
+  - **`app/api/servers/[serverId]/invite-code/route.ts`**
+  - **`app/(invite)/(routes)/invite/[inviteCode]/page.tsx`**
+

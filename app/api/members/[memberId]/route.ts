@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@/lib/current-profile";
 import { prisma } from "@/lib/db";
+import { getIo } from "@/lib/socket-io";
 import { NextResponse } from "next/server";
 
 export async function DELETE(
@@ -51,6 +52,16 @@ export async function DELETE(
         },
       },
     });
+
+    try {
+      getIo().emit(`server:${serverId}:members:update`, {
+        serverId,
+        memberId,
+        action: "delete",
+      });
+    } catch {
+      // Ne bloque pas la mutation si socket indisponible.
+    }
 
     return NextResponse.json(server);
   } catch (error) {
@@ -114,6 +125,16 @@ export async function PATCH(
         },
       },
     });
+
+    try {
+      getIo().emit(`server:${serverId}:members:update`, {
+        serverId,
+        memberId,
+        action: "role-update",
+      });
+    } catch {
+      // Ne bloque pas la mutation si socket indisponible.
+    }
 
     return NextResponse.json(server);
   } catch (error) {
